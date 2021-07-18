@@ -433,9 +433,7 @@ class WalletStateManager:
             curr = self.blockchain.try_block_record(curr.prev_hash)
             if curr is None:
                 return False
-        #Chives Network Code
-        #if curr.is_transaction_block and curr.timestamp > int(time.time()) - 7 * 60:
-        if curr.is_transaction_block and (curr.height+12) > peak.height:
+        if curr.is_transaction_block and curr.timestamp > int(time.time()) - 7 * 60:
             return True
         return False
 

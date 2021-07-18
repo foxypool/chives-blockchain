@@ -475,29 +475,27 @@ class FullNode:
         if curr is None:
             return False
         peakBlock = curr
-        self.log.warning(f"peakBlock.height:{peakBlock.height} peakBlock.prev_hash:{peakBlock.prev_hash} peakBlock.timestamp:{peakBlock.timestamp} peakBlock.is_transaction_block: {peakBlock.is_transaction_block}. ")
+        # self.log.warning(f"peakBlock.height:{peakBlock.height} peakBlock.prev_hash:{peakBlock.prev_hash} peakBlock.timestamp:{peakBlock.timestamp} peakBlock.is_transaction_block: {peakBlock.is_transaction_block}. ")
         
         while curr is not None and not curr.is_transaction_block:
             curr = self.blockchain.try_block_record(curr.prev_hash)
         
-        self.log.warning(f"curr.height:{curr.height} curr.prev_hash:{curr.prev_hash} curr.timestamp:{curr.timestamp} curr.is_transaction_block: {curr.is_transaction_block}. ")
+        # self.log.warning(f"curr.height:{curr.height} curr.prev_hash:{curr.prev_hash} curr.timestamp:{curr.timestamp} curr.is_transaction_block: {curr.is_transaction_block}. ")
         now = time.time()
         
         if (
             curr is None
             or curr.timestamp is None
-            #or curr.timestamp < uint64(int(now - 60 * 7))
-            or (curr.height+12) < peakBlock.height
+            or curr.timestamp < uint64(int(now - 60 * 7))
             or self.sync_store.get_sync_mode()
         ):
-            self.log.warning(f"curr is None:{curr is None}. ")
-            self.log.warning(f"curr.timestamp is None:{curr.timestamp is None}. ")
-            self.log.warning(f"curr.timestamp < uint64(int(now - 60 * 7)):{curr.timestamp < uint64(int(now - 60 * 7))}. ")
-            self.log.warning(f"self.sync_store.get_sync_mode():{self.sync_store.get_sync_mode()}. ")
-            self.log.warning(f"(curr.height+12) < peakBlock.height:{(curr.height+12) < peakBlock.height}. ")
+            # self.log.warning(f"curr is None:{curr is None}. ")
+            # self.log.warning(f"curr.timestamp is None:{curr.timestamp is None}. ")
+            # self.log.warning(f"curr.timestamp < uint64(int(now - 60 * 7)):{curr.timestamp < uint64(int(now - 60 * 7))}. ")
+            # self.log.warning(f"self.sync_store.get_sync_mode():{self.sync_store.get_sync_mode()}. ")
             return False
         else:
-            self.log.warning(f"Full Node Status: Return Synced. ")
+            # self.log.warning(f"Full Node Status: Return Synced. ")
             return True
 
     async def on_connect(self, connection: ws.WSChivesConnection):
@@ -1130,11 +1128,13 @@ class FullNode:
         """
         block: FullBlock = respond_block.block
         if self.sync_store.get_sync_mode():
+            self.log.warning("self.sync_store.get_sync_mode() CODE:FULL_NODE.PY")
             return None
 
         # Adds the block to seen, and check if it's seen before (which means header is in memory)
         header_hash = block.header_hash
         if self.blockchain.contains_block(header_hash):
+            self.log.warning("self.blockchain.contains_block(header_hash)")
             return None
 
         pre_validation_result: Optional[PreValidationResult] = None
@@ -1144,6 +1144,7 @@ class FullNode:
             and block.transactions_info.generator_root != bytes([0] * 32)
             and block.transactions_generator is None
         ):
+            self.log.warning("This is the case where we already had the unfinished block, and asked for this block without")
             # This is the case where we already had the unfinished block, and asked for this block without
             # the transactions (since we already had them). Therefore, here we add the transactions.
             unfinished_rh: bytes32 = block.reward_chain_block.get_unfinished().get_hash()
@@ -1153,6 +1154,7 @@ class FullNode:
                 and unf_block.transactions_generator is not None
                 and unf_block.foliage_transaction_block == block.foliage_transaction_block
             ):
+                self.log.warning("pre_validation_result = self.full_node_store.get_unfinished_block_result(unfinished_rh)")
                 pre_validation_result = self.full_node_store.get_unfinished_block_result(unfinished_rh)
                 assert pre_validation_result is not None
                 block = dataclasses.replace(
@@ -1161,6 +1163,7 @@ class FullNode:
                     transactions_generator_ref_list=unf_block.transactions_generator_ref_list,
                 )
             else:
+                self.log.warning("We still do not have the correct information for this block, perhaps there is a duplicate block")
                 # We still do not have the correct information for this block, perhaps there is a duplicate block
                 # with the same unfinished block hash in the cache, so we need to fetch the correct one
                 if peer is None:
@@ -1188,17 +1191,23 @@ class FullNode:
                 return await self.respond_block(block_response, peer)
 
         async with self.blockchain.lock:
+            # self.log.warning("After acquiring the lock, check again, because another asyncio thread might have added it")
+            # self.log.warning(self.blockchain.contains_block(header_hash))
             # After acquiring the lock, check again, because another asyncio thread might have added it
             if self.blockchain.contains_block(header_hash):
+                self.log.warning("self.blockchain.contains_block(header_hash) 1199")
                 return None
             validation_start = time.time()
             # Tries to add the block to the blockchain, if we already validated transactions, don't do it again
             npc_results = {}
+            # self.log.warning("if pre_validation_result is not None and pre_validation_result.npc_result is not None:")
+            # self.log.warning(pre_validation_result is not None)
             if pre_validation_result is not None and pre_validation_result.npc_result is not None:
                 npc_results[block.height] = pre_validation_result.npc_result
             pre_validation_results: Optional[
                 List[PreValidationResult]
             ] = await self.blockchain.pre_validate_blocks_multiprocessing([block], npc_results)
+            # self.log.warning("if pre_validation_results is None:")
             if pre_validation_results is None:
                 raise ValueError(f"Failed to validate block {header_hash} height {block.height}")
             if pre_validation_results[0].error is not None:
@@ -1206,7 +1215,9 @@ class FullNode:
                     added: ReceiveBlockResult = ReceiveBlockResult.DISCONNECTED_BLOCK
                     error_code: Optional[Err] = Err.INVALID_PREV_BLOCK_HASH
                     fork_height: Optional[uint32] = None
+                    self.log.warning("error_code: Optional[Err] = Err.INVALID_PREV_BLOCK_HASH")
                 else:
+                    self.log.warning("Failed to validate block")
                     raise ValueError(
                         f"Failed to validate block {header_hash} height "
                         f"{block.height}: {Err(pre_validation_results[0].error).name}"
@@ -1215,6 +1226,7 @@ class FullNode:
                 result_to_validate = (
                     pre_validation_results[0] if pre_validation_result is None else pre_validation_result
                 )
+                # self.log.warning("assert result_to_validate.required_iters == pre_validation_results[0].required_iters")
                 assert result_to_validate.required_iters == pre_validation_results[0].required_iters
                 added, error_code, fork_height = await self.blockchain.receive_block(block, result_to_validate, None)
                 if (
@@ -1223,9 +1235,11 @@ class FullNode:
                     and fork_height < self.full_node_store.previous_generator.block_height
                 ):
                     self.full_node_store.previous_generator = None
+                    # self.log.warning("self.full_node_store.previous_generator = None")
             validation_time = time.time() - validation_start
-
+            # self.log.warning("if added == ReceiveBlockResult.ALREADY_HAVE_BLOCK:")
             if added == ReceiveBlockResult.ALREADY_HAVE_BLOCK:
+                self.log.warning("added == ReceiveBlockResult.ALREADY_HAVE_BLOCK: 1238")
                 return None
             elif added == ReceiveBlockResult.INVALID_BLOCK:
                 assert error_code is not None
@@ -1236,6 +1250,7 @@ class FullNode:
                 self.log.info(f"Disconnected block {header_hash} at height {block.height}")
                 return None
             elif added == ReceiveBlockResult.NEW_PEAK:
+                # self.log.warning("added == ReceiveBlockResult.NEW_PEAK: 1249")
                 # Only propagate blocks which extend the blockchain (becomes one of the heads)
                 new_peak: Optional[BlockRecord] = self.blockchain.get_peak()
                 assert new_peak is not None and fork_height is not None
@@ -1247,6 +1262,7 @@ class FullNode:
                     f"Received orphan block of height {block.height} rh " f"{block.reward_chain_block.get_hash()}"
                 )
             else:
+                self.log.warning("# Should never reach here, all the cases are covered 1261")
                 # Should never reach here, all the cases are covered
                 raise RuntimeError(f"Invalid result from receive_block {added}")
         percent_full_str = (
@@ -1535,7 +1551,9 @@ class FullNode:
             self.log.warning("Trying to make a pre-farm block but height is not 0")
             return None
         try:
-            await self.respond_block(full_node_protocol.RespondBlock(block))
+            RespondBlock_FullNode = full_node_protocol.RespondBlock(block)
+            # self.log.warning(RespondBlock_FullNode)
+            await self.respond_block(RespondBlock_FullNode)
         except Exception as e:
             self.log.warning(f"Consensus error validating block: {e}")
             if timelord_peer is not None:

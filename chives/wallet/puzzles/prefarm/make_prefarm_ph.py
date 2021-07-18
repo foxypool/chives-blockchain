@@ -1,24 +1,26 @@
 from clvm.casts import int_from_bytes
 from clvm_tools import binutils
 
-from chives.consensus.block_rewards import calculate_base_farmer_reward, calculate_pool_reward
+from chives.consensus.block_rewards import calculate_base_community_reward,calculate_base_farmer_reward, calculate_pool_reward
 from chives.types.blockchain_format.program import Program
 from chives.types.condition_opcodes import ConditionOpcode
 from chives.util.bech32m import decode_puzzle_hash, encode_puzzle_hash
 from chives.util.condition_tools import parse_sexp_to_conditions
 from chives.util.ints import uint32
 
-address1 = "txcc15gx26ndmacfaqlq8m0yajeggzceu7cvmaz4df0hahkukes695rss6lej7h"  # Gene wallet (m/12381/9444/2/42):
-address2 = "txcc1c2cguswhvmdyz9hr3q6hak2h6p9dw4rz82g4707k2xy2sarv705qcce4pn"  # Mariano address (m/12381/9444/2/0)
+address1 = "xcc1c8crq4ptus00k0cywccgl4hhttxpw6pnhvm69nv5ys0lvgkfeqyqk92x3v"  # Gene wallet (m/12381/9699/2/42):
+address2 = "xcc1fuymfnu5mltetvmvrqw0hmz8dlslyqmjzrcuz9eqh4487df4x24q5he3fj"  # Mariano address (m/12381/9699/2/0)
 
 ph1 = decode_puzzle_hash(address1)
 ph2 = decode_puzzle_hash(address2)
 
 pool_amounts = int(calculate_pool_reward(uint32(0)) / 2)
 farmer_amounts = int(calculate_base_farmer_reward(uint32(0)) / 2)
+community_amounts = int(calculate_base_community_reward(uint32(0)) / 2)
 
 assert pool_amounts * 2 == calculate_pool_reward(uint32(0))
 assert farmer_amounts * 2 == calculate_base_farmer_reward(uint32(0))
+assert community_amounts * 2 == calculate_base_community_reward(uint32(0))
 
 
 def make_puzzle(amount: int) -> int:
@@ -57,5 +59,7 @@ print("Pool address: ")
 total_chives += make_puzzle(pool_amounts)
 print("\nFarmer address: ")
 total_chives += make_puzzle(farmer_amounts)
+print("\nFarmer address: ")
+total_chives += make_puzzle(community_amounts)
 
-assert total_chives == calculate_base_farmer_reward(uint32(0)) + calculate_pool_reward(uint32(0))
+assert total_chives == calculate_base_community_reward(uint32(0)) + calculate_base_farmer_reward(uint32(0)) + calculate_pool_reward(uint32(0))

@@ -22,6 +22,7 @@ else
 fi
 
 pip install setuptools_scm
+pip install requests
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined
 # If the env variable NOTARIZE and the username and password variables are
 # set, this will attempt to Notarize the signed DMG
@@ -32,7 +33,7 @@ if [ ! "$CHIVES_INSTALLER_VERSION" ]; then
 	CHIVES_INSTALLER_VERSION="0.0.0"
 fi
 
-CHIVES_INSTALLER_VERSION="1.1.740"
+CHIVES_INSTALLER_VERSION="1.1.902"
 
 echo "Chives Installer Version is: $CHIVES_INSTALLER_VERSION"
 

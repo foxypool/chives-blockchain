@@ -94,13 +94,14 @@ pip install wheel pep517
 pip install pywin32
 pip install pyinstaller==4.2
 pip install setuptools_scm
+pip install requests
 
 Write-Output "   ---"
 Write-Output "Get CHIVES_INSTALLER_VERSION"
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined
 $env:CHIVES_INSTALLER_VERSION = python .\build_scripts\installer-version.py -win
 
-$env:CHIVES_INSTALLER_VERSION = "1.1.740"
+$env:CHIVES_INSTALLER_VERSION = "1.1.902"
 
 if (-not (Test-Path env:CHIVES_INSTALLER_VERSION)) {
   $env:CHIVES_INSTALLER_VERSION = '0.0.0'

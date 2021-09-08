@@ -57,6 +57,7 @@ testnet_kwargs = {
     "NETWORK_TYPE": 0,
     "MAX_GENERATOR_SIZE": 1000000,
     "MAX_GENERATOR_REF_LIST_SIZE": 512,  # Number of references allowed in the block generator ref list
+    "POOL_SUB_SLOT_ITERS": 36718720,  # iters limit * NUM_SPS
 }
 
 

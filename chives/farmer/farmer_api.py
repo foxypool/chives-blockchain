@@ -108,7 +108,7 @@ class FarmerAPI:
                 )
                 self.farmer.cache_add_time[computed_quality_string] = uint64(int(time.time()))
 
-                await make_msg(ProtocolMessageTypes.request_signatures, request)
+                await peer.send_message(make_msg(ProtocolMessageTypes.request_signatures, request))
 
             pool_public_key = new_proof_of_space.proof.pool_public_key
             if pool_public_key is not None and self.farmer.is_pooling_enabled():

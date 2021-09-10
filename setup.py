@@ -107,7 +107,7 @@ kwargs = dict(
         "chives.ssl": ["chives_ca.crt", "chives_ca.key", "dst_root_ca.pem"],
         "mozilla-ca": ["cacert.pem"],
     },
-    use_scm_version={"fallback_version": "unknown-no-.git-directory"},
+    version="1.1.904",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     zip_safe=False,

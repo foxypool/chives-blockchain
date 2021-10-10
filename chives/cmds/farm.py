@@ -135,10 +135,13 @@ def uploadfarmerdata_cmd(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port
         print(f"Upload the farm summary and challenges data to community.chivescoin.org, and you can query the data in this site.")
         try:
             content = requests.post('https://community.chivescoin.org/farmerinfor/uploaddata.php', data={'FarmerSatus':FarmerSatusJson})
-            content = content.json()
-            print(content)
-        except JSONDecodeError as e:
-            # No nothing  
-            print("https://community.chivescoin.org no respone. Json parse failed.")            
+            try:
+                content = content.json()
+                print(content)
+            except json.JSONDecodeError as e:
+                # No nothing  
+                print("https://community.chivescoin.org no respone. Json parse failed.")            
+        except:
+            print("Network Error.");
         time.sleep(600)
 

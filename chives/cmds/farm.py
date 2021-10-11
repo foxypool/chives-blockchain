@@ -120,7 +120,6 @@ def challenges_cmd(farmer_rpc_port: int, limit: int) -> None:
     show_default=True,
 )
 def uploadfarmerdata_cmd(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port: int, farmer_rpc_port: int) -> None:
-    print("If has 'ModuleNotFoundError: No module named requests', please execute the command in cmd:'pip install requests', and back to restart it.")
     print("Ready to upload harvester data to community.chivescoin.org...")
     from .farm_funcs import summary,challenges,uploadfarmerdata
     import asyncio
@@ -134,12 +133,15 @@ def uploadfarmerdata_cmd(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port
         print('------------------------------------------------------------------')
         print(datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S"))
         print(f"Upload the farm summary and challenges data to community.chivescoin.org, and you can query the data in this site.")
-        content = requests.post('https://community.chivescoin.org/farmerinfor/uploaddata.php', data={'FarmerSatus':FarmerSatusJson})
         try:
-            content = content.json()
-            print(content)
-        except JSONDecodeError as e:
-            # No nothing  
-            print("https://greendoge.chivescoin.org no respone. Json parse failed.")            
+            content = requests.post('https://community.chivescoin.org/farmerinfor/uploaddata.php', data={'FarmerSatus':FarmerSatusJson})
+            try:
+                content = content.json()
+                print(content)
+            except json.JSONDecodeError as e:
+                # No nothing
+                print("https://community.chivescoin.org no respone. Json parse failed.")
+        except:
+            print("Network Error.");
         time.sleep(600)
 

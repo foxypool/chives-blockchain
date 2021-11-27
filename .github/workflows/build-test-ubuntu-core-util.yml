@@ -1,3 +1,6 @@
+#
+# THIS FILE IS GENERATED. SEE https://github.com/Chives-Network/chives-blockchain/tree/main/tests#readme
+#
 name: Ubuntu core-util Test
 
 on:
@@ -25,7 +28,7 @@ jobs:
     steps:
     - name: Cancel previous runs on the same branch
       if: ${{ github.ref != 'refs/heads/main' }}
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ github.token }}
 
@@ -63,17 +66,17 @@ jobs:
     - name: Checkout test blocks and plots
       uses: actions/checkout@v2
       with:
-        repository: 'Chia-Network/test-cache'
-        path: '.chia'
-        ref: '0.26.0'
+        repository: 'Chives-Network/test-cache'
+        path: '.chives'
+        ref: '0.27.0'
         fetch-depth: 1
 
     - name: Link home directory
       run: |
         cd $HOME
-        ln -s $GITHUB_WORKSPACE/.chia
-        echo "$HOME/.chia"
-        ls -al $HOME/.chia
+        ln -s $GITHUB_WORKSPACE/.chives
+        echo "$HOME/.chives"
+        ls -al $HOME/.chives
 
     - name: Install ubuntu dependencies
       run: |
@@ -86,7 +89,7 @@ jobs:
       env:
         INSTALL_PYTHON_VERSION: ${{ matrix.python-version }}
       run: |
-        sh install.sh
+        sh install.sh -d
 
     - name: Install timelord
       run: |
@@ -94,12 +97,12 @@ jobs:
         sh install-timelord.sh
         ./vdf_bench square_asm 400000
 
-    - name: Install developer requirements
-      run: |
-        . ./activate
-        venv/bin/python -m pip install pytest pytest-asyncio pytest-xdist
-
     - name: Test core-util code with pytest
       run: |
         . ./activate
-        ./venv/bin/py.test tests/core/util/test_keychain.py tests/core/util/test_significant_bits.py tests/core/util/test_streamable.py tests/core/util/test_type_checking.py -s -v --durations 0 
+        ./venv/bin/py.test tests/core/util/test_*.py -s -v --durations 0
+
+
+#
+# THIS FILE IS GENERATED. SEE https://github.com/Chives-Network/chives-blockchain/tree/main/tests#readme
+#

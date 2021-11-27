@@ -7,12 +7,13 @@ from typing import Any, Callable, Dict, List, Optional
 
 import aiohttp
 
+from chives.rpc.util import wrap_http_handler
 from chives.server.outbound_message import NodeType
 from chives.server.server import ssl_context_for_server
 from chives.types.peer_info import PeerInfo
 from chives.util.byte_types import hexstr_to_bytes
 from chives.util.ints import uint16
-from chives.util.json_util import dict_to_json_str, obj_to_response
+from chives.util.json_util import dict_to_json_str
 from chives.util.ws_message import create_payload, create_payload_dict, format_response, pong
 
 log = logging.getLogger(__name__)
@@ -36,7 +37,9 @@ class RpcServer:
         self.key_path = root_path / net_config["daemon_ssl"]["private_key"]
         self.ca_cert_path = root_path / net_config["private_ssl_ca"]["crt"]
         self.ca_key_path = root_path / net_config["private_ssl_ca"]["key"]
-        self.ssl_context = ssl_context_for_server(self.ca_cert_path, self.ca_key_path, self.crt_path, self.key_path)
+        self.ssl_context = ssl_context_for_server(
+            self.ca_cert_path, self.ca_key_path, self.crt_path, self.key_path, log=self.log
+        )
 
     async def stop(self):
         self.shut_down = True
@@ -63,6 +66,8 @@ class RpcServer:
         for payload in payloads:
             if "success" not in payload["data"]:
                 payload["data"]["success"] = True
+            if self.websocket is None:
+                return None
             try:
                 await self.websocket.send_str(dict_to_json_str(payload))
             except Exception:
@@ -74,33 +79,31 @@ class RpcServer:
             return None
         asyncio.create_task(self._state_changed(*args))
 
-    def _wrap_http_handler(self, f) -> Callable:
-        async def inner(request) -> aiohttp.web.Response:
-            request_data = await request.json()
-            try:
-                res_object = await f(request_data)
-                if res_object is None:
-                    res_object = {}
-                if "success" not in res_object:
-                    res_object["success"] = True
-            except Exception as e:
-                tb = traceback.format_exc()
-                self.log.warning(f"Error while handling message: {tb}")
-                if len(e.args) > 0:
-                    res_object = {"success": False, "error": f"{e.args[0]}"}
-                else:
-                    res_object = {"success": False, "error": f"{e}"}
+    def get_routes(self) -> Dict[str, Callable]:
+        return {
+            **self.rpc_api.get_routes(),
+            "/get_connections": self.get_connections,
+            "/open_connection": self.open_connection,
+            "/close_connection": self.close_connection,
+            "/stop_node": self.stop_node,
+            "/get_routes": self._get_routes,
+        }
 
-            return obj_to_response(res_object)
-
-        return inner
+    async def _get_routes(self, request: Dict) -> Dict:
+        return {
+            "success": "true",
+            "routes": list(self.get_routes().keys()),
+        }
 
     async def get_connections(self, request: Dict) -> Dict:
+        request_node_type: Optional[NodeType] = None
+        if "node_type" in request:
+            request_node_type = NodeType(request["node_type"])
         if self.rpc_api.service.server is None:
             raise ValueError("Global connections is not set")
         if self.rpc_api.service.server._local_type is NodeType.FULL_NODE:
             # TODO add peaks for peers
-            connections = self.rpc_api.service.server.get_connections()
+            connections = self.rpc_api.service.server.get_connections(request_node_type)
             con_info = []
             if self.rpc_api.service.sync_store is not None:
                 peak_store = self.rpc_api.service.sync_store.peer_to_peak
@@ -130,7 +133,7 @@ class RpcServer:
                 }
                 con_info.append(con_dict)
         else:
-            connections = self.rpc_api.service.server.get_connections()
+            connections = self.rpc_api.service.server.get_connections(request_node_type)
             con_info = [
                 {
                     "type": con.connection_type,
@@ -300,26 +303,9 @@ async def start_rpc_server(
     app = aiohttp.web.Application()
     rpc_server = RpcServer(rpc_api, rpc_api.service_name, stop_cb, root_path, net_config)
     rpc_server.rpc_api.service._set_state_changed_callback(rpc_server.state_changed)
-    http_routes: Dict[str, Callable] = rpc_api.get_routes()
-
-    routes = [aiohttp.web.post(route, rpc_server._wrap_http_handler(func)) for (route, func) in http_routes.items()]
-    routes += [
-        aiohttp.web.post(
-            "/get_connections",
-            rpc_server._wrap_http_handler(rpc_server.get_connections),
-        ),
-        aiohttp.web.post(
-            "/open_connection",
-            rpc_server._wrap_http_handler(rpc_server.open_connection),
-        ),
-        aiohttp.web.post(
-            "/close_connection",
-            rpc_server._wrap_http_handler(rpc_server.close_connection),
-        ),
-        aiohttp.web.post("/stop_node", rpc_server._wrap_http_handler(rpc_server.stop_node)),
-    ]
-
-    app.add_routes(routes)
+    app.add_routes(
+        [aiohttp.web.post(route, wrap_http_handler(func)) for (route, func) in rpc_server.get_routes().items()]
+    )
     if connect_to_daemon:
         daemon_connection = asyncio.create_task(rpc_server.connect_to_daemon(self_hostname, daemon_port))
     runner = aiohttp.web.AppRunner(app, access_log=None)

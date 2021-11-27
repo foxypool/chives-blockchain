@@ -44,7 +44,7 @@ class FullNodeSimulator(FullNodeAPI):
 
     @api_request
     async def farm_new_transaction_block(self, request: FarmNewBlockProtocol):
-        async with self.full_node.blockchain.lock:
+        async with self.full_node._blockchain_lock_high_priority:
             self.log.info("Farming new block!")
             current_blocks = await self.get_all_full_blocks()
             if len(current_blocks) == 0:
@@ -61,9 +61,7 @@ class FullNodeSimulator(FullNodeAPI):
                 spend_bundle = None
             else:
                 spend_bundle = mempool_bundle[0]
-                
-                
-            self.log.info(self.full_node.constants.GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH)
+
             current_blocks = await self.get_all_full_blocks()
             target = request.puzzle_hash
             more = self.bt.get_consecutive_blocks(
@@ -71,7 +69,6 @@ class FullNodeSimulator(FullNodeAPI):
                 time_per_block=self.time_per_block,
                 transaction_data=spend_bundle,
                 farmer_reward_puzzle_hash=target,
-                community_reward_puzzle_hash=self.full_node.constants.GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH,
                 pool_reward_puzzle_hash=target,
                 block_list_input=current_blocks,
                 guarantee_transaction_block=True,
@@ -83,7 +80,7 @@ class FullNodeSimulator(FullNodeAPI):
 
     @api_request
     async def farm_new_block(self, request: FarmNewBlockProtocol):
-        async with self.full_node.blockchain.lock:
+        async with self.full_node._blockchain_lock_high_priority:
             self.log.info("Farming new block!")
             current_blocks = await self.get_all_full_blocks()
             if len(current_blocks) == 0:
@@ -106,7 +103,6 @@ class FullNodeSimulator(FullNodeAPI):
                 1,
                 transaction_data=spend_bundle,
                 farmer_reward_puzzle_hash=target,
-                community_reward_puzzle_hash=self.full_node.constants.GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH,
                 pool_reward_puzzle_hash=target,
                 block_list_input=current_blocks,
                 current_time=self.use_current_time,
@@ -126,7 +122,6 @@ class FullNodeSimulator(FullNodeAPI):
         more_blocks = self.bt.get_consecutive_blocks(
             block_count,
             farmer_reward_puzzle_hash=coinbase_ph,
-            community_reward_puzzle_hash=self.full_node.constants.GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH,
             pool_reward_puzzle_hash=coinbase_ph,
             block_list_input=current_blocks[: old_index + 1],
             force_overflow=True,

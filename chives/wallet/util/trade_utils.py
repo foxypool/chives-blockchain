@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from chives.types.blockchain_format.program import Program, INFINITE_COST
 from chives.types.condition_opcodes import ConditionOpcode
@@ -24,9 +24,9 @@ def trade_status_ui_string(status: TradeStatus):
         return "Pending"
 
 
-def trade_record_to_dict(record: TradeRecord) -> Dict:
-    """ Convenience function to return only part of trade record we care about and show correct status to the ui"""
-    result = {}
+def trade_record_to_dict(record: TradeRecord) -> Dict[str, Any]:
+    """Convenience function to return only part of trade record we care about and show correct status to the ui"""
+    result: Dict[str, Any] = {}
     result["trade_id"] = record.trade_id.hex()
     result["sent"] = record.sent
     result["my_offer"] = record.my_offer
@@ -63,7 +63,7 @@ def get_discrepancies_for_spend_bundle(
 ) -> Tuple[bool, Optional[Dict], Optional[Exception]]:
     try:
         cc_discrepancies: Dict[str, int] = dict()
-        for coinsol in trade_offer.coin_solutions:
+        for coinsol in trade_offer.coin_spends:
             puzzle: Program = Program.from_bytes(bytes(coinsol.puzzle_reveal))
             solution: Program = Program.from_bytes(bytes(coinsol.solution))
             # work out the deficits between coin amount and expected output for each

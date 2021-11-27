@@ -89,7 +89,7 @@ class Timelord:
         self.total_infused: int = 0
         self.state_changed_callback: Optional[Callable] = None
         self.sanitizer_mode = self.config["sanitizer_mode"]
-        self.pending_bluebox_info: List[timelord_protocol.RequestCompactProofOfTime] = []
+        self.pending_bluebox_info: List[Tuple[float, timelord_protocol.RequestCompactProofOfTime]] = []
         self.last_active_time = time.time()
 
     async def _start(self):
@@ -703,12 +703,14 @@ class Timelord:
             icc_sub_slot: Optional[InfusedChallengeChainSubSlot] = (
                 None if icc_ip_vdf is None else InfusedChallengeChainSubSlot(icc_ip_vdf)
             )
+            icc_sub_slot_hash: Optional[bytes32]
             if self.last_state.get_deficit() == 0:
                 assert icc_sub_slot is not None
                 icc_sub_slot_hash = icc_sub_slot.get_hash()
             else:
                 icc_sub_slot_hash = None
             next_ses: Optional[SubEpochSummary] = self.last_state.get_next_sub_epoch_summary()
+            ses_hash: Optional[bytes32]
             if next_ses is not None:
                 log.info(f"Including sub epoch summary{next_ses}")
                 ses_hash = next_ses.get_hash()
@@ -781,9 +783,9 @@ class Timelord:
             # If we have recently had a failure, allow some more time to finish the slot (we can be up to 3x slower)
             active_time_threshold = self.constants.SUB_SLOT_TIME_TARGET * 3
         else:
-            # If there were no failures recently trigger a reset after 60*60 seconds of no activity.
+            # If there were no failures recently trigger a reset after 60 seconds of no activity.
             # Signage points should be every 9 seconds
-            active_time_threshold = 60*60
+            active_time_threshold = 60
         if time.time() - self.last_active_time > active_time_threshold:
             log.error(f"Not active for {active_time_threshold} seconds, restarting all chains")
             await self._reset_chains()
@@ -1005,7 +1007,7 @@ class Timelord:
                         # CC_EOS and ICC_EOS. This guarantees everything is picked uniformly.
                         target_field_vdf = random.randint(1, 4)
                         info = next(
-                            (info for info in self.pending_bluebox_info if info.field_vdf == target_field_vdf),
+                            (info for info in self.pending_bluebox_info if info[1].field_vdf == target_field_vdf),
                             None,
                         )
                         if info is None:
@@ -1016,15 +1018,15 @@ class Timelord:
                             asyncio.create_task(
                                 self._do_process_communication(
                                     Chain.BLUEBOX,
-                                    info.new_proof_of_time.challenge,
+                                    info[1].new_proof_of_time.challenge,
                                     ClassgroupElement.get_default_element(),
                                     ip,
                                     reader,
                                     writer,
-                                    info.new_proof_of_time.number_of_iterations,
-                                    info.header_hash,
-                                    info.height,
-                                    info.field_vdf,
+                                    info[1].new_proof_of_time.number_of_iterations,
+                                    info[1].header_hash,
+                                    info[1].height,
+                                    info[1].field_vdf,
                                 )
                             )
                         )

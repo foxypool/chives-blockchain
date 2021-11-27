@@ -8,9 +8,9 @@ from blspy import G1Element, G2Element
 from chiabip158 import PyBIP158
 
 from chives.consensus.block_record import BlockRecord
-from chives.consensus.block_rewards import calculate_base_community_reward, calculate_base_farmer_reward, calculate_pool_reward
+from chives.consensus.block_rewards import calculate_base_farmer_reward, calculate_pool_reward
 from chives.consensus.blockchain_interface import BlockchainInterface
-from chives.consensus.coinbase import create_community_coin, create_farmer_coin, create_pool_coin
+from chives.consensus.coinbase import create_farmer_coin, create_pool_coin
 from chives.consensus.constants import ConsensusConstants
 from chives.consensus.cost_calculator import NPCResult, calculate_cost_of_program
 from chives.full_node.mempool_check_conditions import get_name_puzzle_conditions
@@ -47,7 +47,6 @@ def create_foliage(
     total_iters_sp: uint128,
     timestamp: uint64,
     farmer_reward_puzzlehash: bytes32,
-    community_reward_puzzlehash: bytes32,
     pool_target: PoolTarget,
     get_plot_signature: Callable[[bytes32, G1Element], G2Element],
     get_pool_signature: Callable[[PoolTarget, Optional[G1Element]], Optional[G2Element]],
@@ -68,7 +67,6 @@ def create_foliage(
         total_iters_sp: total iters at the signage point
         timestamp: timestamp to put into the foliage block
         farmer_reward_puzzlehash: where to pay out farming reward
-        community_reward_puzzlehash: where to pay out community reward
         pool_target: where to pay out pool reward
         get_plot_signature: retrieve the signature corresponding to the plot public key
         get_pool_signature: retrieve the signature corresponding to the pool public key
@@ -107,7 +105,6 @@ def create_foliage(
         pool_target,
         pool_target_signature,
         farmer_reward_puzzlehash,
-        community_reward_puzzlehash,
         extension_data,
     )
 
@@ -129,7 +126,12 @@ def create_foliage(
         # Calculate the cost of transactions
         if block_generator is not None:
             generator_block_heights_list = block_generator.block_height_list()
-            result: NPCResult = get_name_puzzle_conditions(block_generator, constants.MAX_BLOCK_COST_CLVM, True)
+            result: NPCResult = get_name_puzzle_conditions(
+                block_generator,
+                constants.MAX_BLOCK_COST_CLVM,
+                cost_per_byte=constants.COST_PER_BYTE,
+                safe_mode=True,
+            )
             cost = calculate_cost_of_program(block_generator.program, result, constants.COST_PER_BYTE)
 
             removal_amount = 0
@@ -152,10 +154,7 @@ def create_foliage(
 
             assert curr.fees is not None
             pool_coin = create_pool_coin(
-                curr.height, 
-                curr.pool_puzzle_hash, 
-                calculate_pool_reward(curr.height), 
-                constants.GENESIS_CHALLENGE,
+                curr.height, curr.pool_puzzle_hash, calculate_pool_reward(curr.height), constants.GENESIS_CHALLENGE
             )
 
             farmer_coin = create_farmer_coin(
@@ -164,16 +163,8 @@ def create_foliage(
                 uint64(calculate_base_farmer_reward(curr.height) + curr.fees),
                 constants.GENESIS_CHALLENGE,
             )
-            
-            community_coin = create_community_coin(
-                curr.height,
-                constants.GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH,
-                calculate_base_community_reward(curr.height),
-                constants.GENESIS_CHALLENGE,
-            )
-            
             assert curr.header_hash == prev_transaction_block.header_hash
-            reward_claims_incorporated += [pool_coin, farmer_coin, community_coin]
+            reward_claims_incorporated += [pool_coin, farmer_coin]
 
             if curr.height > 0:
                 curr = blocks.block_record(curr.prev_hash)
@@ -191,13 +182,7 @@ def create_foliage(
                         calculate_base_farmer_reward(curr.height),
                         constants.GENESIS_CHALLENGE,
                     )
-                    community_coin = create_community_coin(
-                        curr.height,
-                        constants.GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH,
-                        calculate_base_community_reward(curr.height),
-                        constants.GENESIS_CHALLENGE,
-                    )
-                    reward_claims_incorporated += [pool_coin, farmer_coin, community_coin]
+                    reward_claims_incorporated += [pool_coin, farmer_coin]
                     curr = blocks.block_record(curr.prev_hash)
         additions.extend(reward_claims_incorporated.copy())
         for coin in additions:
@@ -269,7 +254,7 @@ def create_foliage(
         )
         assert foliage_transaction_block is not None
 
-        foliage_transaction_block_hash: Optional[bytes32] = foliage_transaction_block.get_hash()
+        foliage_transaction_block_hash: bytes32 = foliage_transaction_block.get_hash()
         foliage_transaction_block_signature: Optional[G2Element] = get_plot_signature(
             foliage_transaction_block_hash, reward_block_unfinished.proof_of_space.plot_public_key
         )
@@ -303,7 +288,6 @@ def create_unfinished_block(
     proof_of_space: ProofOfSpace,
     slot_cc_challenge: bytes32,
     farmer_reward_puzzle_hash: bytes32,
-    community_reward_puzzle_hash: bytes32,
     pool_target: PoolTarget,
     get_plot_signature: Callable[[bytes32, G1Element], G2Element],
     get_pool_signature: Callable[[PoolTarget, Optional[G1Element]], Optional[G2Element]],
@@ -332,7 +316,6 @@ def create_unfinished_block(
         proof_of_space: proof of space of the block to create
         slot_cc_challenge: challenge hash at the sp sub-slot
         farmer_reward_puzzle_hash: where to pay out farmer rewards
-        community_reward_puzzle_hash: where to pay out community rewards
         pool_target: where to pay out pool rewards
         get_plot_signature: function that returns signature corresponding to plot public key
         get_pool_signature: function that returns signature corresponding to pool public key
@@ -360,7 +343,7 @@ def create_unfinished_block(
 
     new_sub_slot: bool = len(finished_sub_slots) > 0
 
-    cc_sp_hash: Optional[bytes32] = slot_cc_challenge
+    cc_sp_hash: bytes32 = slot_cc_challenge
 
     # Only enters this if statement if we are in testing mode (making VDF proofs here)
     if signage_point.cc_vdf is not None:
@@ -417,7 +400,6 @@ def create_unfinished_block(
         total_iters_sp,
         timestamp,
         farmer_reward_puzzle_hash,
-        community_reward_puzzle_hash,
         pool_target,
         get_plot_signature,
         get_pool_signature,

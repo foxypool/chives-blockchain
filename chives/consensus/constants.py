@@ -3,6 +3,9 @@ import dataclasses
 from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.util.byte_types import hexstr_to_bytes
 from chives.util.ints import uint8, uint32, uint64, uint128
+import logging
+
+log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -38,7 +41,6 @@ class ConsensusConstants:
     AGG_SIG_ME_ADDITIONAL_DATA: bytes
     GENESIS_PRE_FARM_POOL_PUZZLE_HASH: bytes32  # The block at height must pay out to this pool puzzle hash
     GENESIS_PRE_FARM_FARMER_PUZZLE_HASH: bytes32  # The block at height must pay out to this farmer puzzle hash
-    GENESIS_PRE_FARM_COMMUNITY_PUZZLE_HASH: bytes32  # The block at height must pay out to this farmer puzzle hash
     MAX_VDF_WITNESS_SIZE: int  # The maximum number of classgroup elements within an n-wesolowski proof
     # Size of mempool = 10x the size of block
     MEMPOOL_BLOCK_BUFFER: int
@@ -52,11 +54,11 @@ class ConsensusConstants:
     WEIGHT_PROOF_THRESHOLD: uint8
     WEIGHT_PROOF_RECENT_BLOCKS: uint32
     MAX_BLOCK_COUNT_PER_REQUESTS: uint32
-    INITIAL_FREEZE_END_TIMESTAMP: uint64
     BLOCKS_CACHE_SIZE: uint32
     NETWORK_TYPE: int
     MAX_GENERATOR_SIZE: uint32
     MAX_GENERATOR_REF_LIST_SIZE: uint32
+    POOL_SUB_SLOT_ITERS: uint64
 
     def replace(self, **changes) -> "ConsensusConstants":
         return dataclasses.replace(self, **changes)
@@ -66,8 +68,14 @@ class ConsensusConstants:
         Overrides str (hex) values with bytes.
         """
 
+        filtered_changes = {}
         for k, v in changes.items():
+            if not hasattr(self, k):
+                log.warn(f'invalid key in network configuration (config.yaml) "{k}". Ignoring')
+                continue
             if isinstance(v, str):
-                changes[k] = hexstr_to_bytes(v)
+                filtered_changes[k] = hexstr_to_bytes(v)
+            else:
+                filtered_changes[k] = v
 
-        return dataclasses.replace(self, **changes)
+        return dataclasses.replace(self, **filtered_changes)

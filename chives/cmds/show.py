@@ -1,10 +1,11 @@
-from typing import Any
+from typing import Any, Optional, Union
 
+from chives.types.blockchain_format.sized_bytes import bytes32
 import click
 
 
 async def show_async(
-    rpc_port: int,
+    rpc_port: Optional[int],
     state: bool,
     show_connections: bool,
     exit_node: bool,
@@ -49,23 +50,26 @@ async def show_async(
             sync_mode = blockchain_state["sync"]["sync_mode"]
             total_iters = peak.total_iters if peak is not None else 0
             num_blocks: int = 10
+            network_name = config["selected_network"]
+            genesis_challenge = config["farmer"]["network_overrides"]["constants"][network_name]["GENESIS_CHALLENGE"]
+            full_node_port = config["full_node"]["port"]
+            full_node_rpc_port = config["full_node"]["rpc_port"]
 
-            if sync_mode:
+            print(f"Network: {network_name}    Port: {full_node_port}   Rpc Port: {full_node_rpc_port}")
+            print(f"Genesis Challenge: {genesis_challenge}")
+
+            if synced:
+                print("Current Blockchain Status: Full Node Synced")
+                print("\nPeak: Hash:", peak.header_hash if peak is not None else "")
+            elif peak is not None and sync_mode:
                 sync_max_block = blockchain_state["sync"]["sync_tip_height"]
                 sync_current_block = blockchain_state["sync"]["sync_progress_height"]
-                print(
-                    "**********************************************\nCurrent Blockchain Status: Full Node syncing to block",
-                    sync_max_block,
-                    "\nCurrently synced to block:",
-                    sync_current_block,
-                )
-            if synced:
-                print("#############################################\nCurrent Blockchain Status: Full Node Synced")
-                print("\nPeak: Hash:", peak.header_hash if peak is not None else "")
+                print(f"Current Blockchain Status: Syncing {sync_current_block}/{sync_max_block}.")
+                print("Peak: Hash:", peak.header_hash if peak is not None else "")
             elif peak is not None:
-                print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nCurrent Blockchain Status: Not Synced. Peak height: {peak.height}")
+                print(f"Current Blockchain Status: Not Synced. Peak height: {peak.height}")
             else:
-                print("#############################################\nSearching for an initial chain\n")
+                print("\nSearching for an initial chain\n")
                 print("You may be able to expedite with 'chives show -a host:port' using a known node.\n")
 
             if peak is not None:
@@ -122,8 +126,7 @@ async def show_async(
 
                 host = con["peer_host"]
                 # Strip IPv6 brackets
-                if host[0] == "[":
-                    host = host[1:39]
+                host = host.strip("[]")
                 # Nodetype length is 9 because INTRODUCER will be deprecated
                 if NodeType(con["type"]) is NodeType.FULL_NODE:
                     peak_height = con["peak_height"]
@@ -158,7 +161,7 @@ async def show_async(
             print(node_stop, "Node stopped")
         if add_connection:
             if ":" not in add_connection:
-                print("Enter a valid IP and port in the following format: node-us.chivescoin.org:9699")
+                print("Enter a valid IP and port in the following format: 10.5.4.3:8000")
             else:
                 ip, port = (
                     ":".join(add_connection.split(":")[:-1]),
@@ -216,7 +219,7 @@ async def show_async(
                     )
                     block_time_string = time.strftime("%a %b %d %Y %T %Z", block_time)
                     cost = str(full_block.transactions_info.cost)
-                    tx_filter_hash = "Not a transaction block"
+                    tx_filter_hash: Union[str, bytes32] = "Not a transaction block"
                     if full_block.foliage_transaction_block:
                         tx_filter_hash = full_block.foliage_transaction_block.filter_hash
                     fees: Any = block.fees
@@ -227,7 +230,6 @@ async def show_async(
                     fees = "Not a transaction block"
                 address_prefix = config["network_overrides"]["config"][config["selected_network"]]["address_prefix"]
                 farmer_address = encode_puzzle_hash(block.farmer_puzzle_hash, address_prefix)
-                community_address = encode_puzzle_hash(block.community_puzzle_hash, address_prefix)
                 pool_address = encode_puzzle_hash(block.pool_puzzle_hash, address_prefix)
                 pool_pk = (
                     full_block.reward_chain_block.proof_of_space.pool_public_key
@@ -251,7 +253,6 @@ async def show_async(
                     f"Pool Public Key        {pool_pk}\n"
                     f"Tx Filter Hash         {tx_filter_hash}\n"
                     f"Farmer Address         {farmer_address}\n"
-                    f"Community Address      {community_address}\n"
                     f"Pool Address           {pool_address}\n"
                     f"Fees Amount            {fees}\n"
                 )
@@ -302,8 +303,8 @@ async def show_async(
 )
 @click.option("-b", "--block-by-header-hash", help="Look up a block by block header hash", type=str, default="")
 def show_cmd(
-    rpc_port: int,
-    wallet_rpc_port: int,
+    rpc_port: Optional[int],
+    wallet_rpc_port: Optional[int],
     state: bool,
     connections: bool,
     exit_node: bool,

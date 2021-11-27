@@ -27,11 +27,16 @@ wallet_program_files = set(
         "chives/wallet/puzzles/singleton_top_layer.clvm",
         "chives/wallet/puzzles/did_innerpuz.clvm",
         "chives/wallet/puzzles/decompress_puzzle.clvm",
-        "chives/wallet/puzzles/decompress_coin_solution_entry_with_prefix.clvm",
-        "chives/wallet/puzzles/decompress_coin_solution_entry.clvm",
+        "chives/wallet/puzzles/decompress_coin_spend_entry_with_prefix.clvm",
+        "chives/wallet/puzzles/decompress_coin_spend_entry.clvm",
         "chives/wallet/puzzles/block_program_zero.clvm",
         "chives/wallet/puzzles/test_generator_deserialize.clvm",
         "chives/wallet/puzzles/test_multiple_generator_input_arguments.clvm",
+        "chives/wallet/puzzles/p2_singleton.clvm",
+        "chives/wallet/puzzles/pool_waitingroom_innerpuz.clvm",
+        "chives/wallet/puzzles/pool_member_innerpuz.clvm",
+        "chives/wallet/puzzles/singleton_launcher.clvm",
+        "chives/wallet/puzzles/p2_singleton_or_delayed_puzhash.clvm",
     ]
 )
 

@@ -98,6 +98,9 @@ if [ ! "$CI" ]; then
 	if [ "$SUBMODULE_BRANCH" ];
 	then
     git fetch
+		echo "===================="
+		echo $SUBMODULE_BRANCH
+		echo "===================="
 		git checkout "$SUBMODULE_BRANCH"
     git pull
 		echo ""

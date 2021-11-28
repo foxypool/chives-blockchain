@@ -91,7 +91,10 @@ if [ ! "$CI" ]; then
 	echo ""
 	git submodule update
 	cd chives-blockchain-gui
-
+	
+	echo "===================="
+	echo $SUBMODULE_BRANCH
+	echo "===================="
 	if [ "$SUBMODULE_BRANCH" ];
 	then
     git fetch

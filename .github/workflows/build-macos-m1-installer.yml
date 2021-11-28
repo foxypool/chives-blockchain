@@ -94,8 +94,8 @@ jobs:
       - name: Get latest madmax plotter
         run: |
           mkdir "$GITHUB_WORKSPACE/madmax"
-          wget -O "$GITHUB_WORKSPACE/madmax/chives_plot" https://github.com/Chives-Network/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot-${{ steps.latest-madmax.outputs.result }}-macos-m1
-          wget -O "$GITHUB_WORKSPACE/madmax/chives_plot_k34" https://github.com/Chives-Network/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot_k34-${{ steps.latest-madmax.outputs.result }}-macos-m1
+          wget -O "$GITHUB_WORKSPACE/madmax/chives_plot" https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot-${{ steps.latest-madmax.outputs.result }}-macos-m1
+          wget -O "$GITHUB_WORKSPACE/madmax/chives_plot_k34" https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot_k34-${{ steps.latest-madmax.outputs.result }}-macos-m1
           chmod +x "$GITHUB_WORKSPACE/madmax/chives_plot"
           chmod +x "$GITHUB_WORKSPACE/madmax/chives_plot_k34"
 

@@ -107,7 +107,7 @@ def build_parser(subparsers, root_path, option_list, name, plotter_desc):
                 "--size",
                 type=int,
                 help="K value.",
-                default=32,
+                default=29,
             )
         u_default = 0 if name == "chiapos" else 256
         if option is Options.NUM_BUCKETS:
@@ -285,7 +285,7 @@ def build_parser(subparsers, root_path, option_list, name, plotter_desc):
                 "--override-k",
                 dest="override",
                 action="store_true",
-                help="Force size smaller than 32",
+                help="Force size smaller than 29",
                 default=False,
             )
         if option is Options.ALT_FINGERPRINT:

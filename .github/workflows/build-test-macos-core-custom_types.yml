@@ -1,5 +1,5 @@
 #
-# THIS FILE IS GENERATED. SEE https://github.com/Chives-Network/chives-blockchain/tree/main/tests#readme
+# THIS FILE IS GENERATED. SEE https://github.com/HiveProject2021/chives-blockchain/tree/main/tests#readme
 #
 name: MacOS core-custom_types Tests
 
@@ -97,5 +97,5 @@ jobs:
         . ./activate
         ./venv/bin/py.test tests/core/custom_types/test_*.py -s -v --durations 0
 #
-# THIS FILE IS GENERATED. SEE https://github.com/Chives-Network/chives-blockchain/tree/main/tests#readme
+# THIS FILE IS GENERATED. SEE https://github.com/HiveProject2021/chives-blockchain/tree/main/tests#readme
 #

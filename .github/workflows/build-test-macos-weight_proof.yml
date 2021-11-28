@@ -1,5 +1,5 @@
 #
-# THIS FILE IS GENERATED. SEE https://github.com/Chives-Network/chives-blockchain/tree/main/tests#readme
+# THIS FILE IS GENERATED. SEE https://github.com/HiveProject2021/chives-blockchain/tree/main/tests#readme
 #
 name: MacOS weight_proof Tests
 
@@ -97,5 +97,5 @@ jobs:
         . ./activate
         ./venv/bin/py.test tests/weight_proof/test_*.py -s -v --durations 0
 #
-# THIS FILE IS GENERATED. SEE https://github.com/Chives-Network/chives-blockchain/tree/main/tests#readme
+# THIS FILE IS GENERATED. SEE https://github.com/HiveProject2021/chives-blockchain/tree/main/tests#readme
 #

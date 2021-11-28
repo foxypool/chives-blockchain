@@ -4,7 +4,7 @@
 
 | Current Release/main | Development Branch/dev |
 |         :---:          |          :---:         |
-| [![Ubuntu Core Tests](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml/badge.svg)](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml) [![MacOS Core Tests](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-macos-core.yml/badge.svg)](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-macos-core.yml) [![Windows Installer on Windows 10 and Python 3.7](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-windows-installer.yml/badge.svg)](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-windows-installer.yml)  |  [![Ubuntu Core Tests](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml/badge.svg?branch=dev)](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml) [![MacOS Core Tests](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-macos-core.yml/badge.svg?branch=dev)](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-test-macos-core.yml) [![Windows Installer on Windows 10 and Python 3.7](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-windows-installer.yml/badge.svg?branch=dev)](https://github.com/Chives-Network/chives-blockchain/actions/workflows/build-windows-installer.yml) |
+| [![Ubuntu Core Tests](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml/badge.svg)](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml) [![MacOS Core Tests](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-macos-core.yml/badge.svg)](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-macos-core.yml) [![Windows Installer on Windows 10 and Python 3.7](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-windows-installer.yml/badge.svg)](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-windows-installer.yml)  |  [![Ubuntu Core Tests](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml/badge.svg?branch=dev)](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-ubuntu-core.yml) [![MacOS Core Tests](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-macos-core.yml/badge.svg?branch=dev)](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-test-macos-core.yml) [![Windows Installer on Windows 10 and Python 3.7](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-windows-installer.yml/badge.svg?branch=dev)](https://github.com/HiveProject2021/chives-blockchain/actions/workflows/build-windows-installer.yml) |
 
 ![GitHub contributors](https://img.shields.io/github/contributors/Chives-Network/chives-blockchain?logo=GitHub)
 
@@ -14,12 +14,12 @@ Chives is a modern cryptocurrency built from scratch, designed to be efficient, 
 * Simplified UTXO based transaction model, with small on-chain state
 * Lisp-style Turing-complete functional [programming language](https://chiveslisp.com/) for money related use cases
 * BLS keys and aggregate signatures (only one signature per block)
-* [Pooling protocol](https://github.com/Chives-Network/chives-blockchain/wiki/Pooling-User-Guide) that allows farmers to have control of making blocks
+* [Pooling protocol](https://github.com/HiveProject2021/chives-blockchain/wiki/Pooling-User-Guide) that allows farmers to have control of making blocks
 * Support for light clients with fast, objective syncing
 * A growing community of farmers and developers around the world
 
-Please check out the [wiki](https://github.com/Chives-Network/chives-blockchain/wiki)
-and [FAQ](https://github.com/Chives-Network/chives-blockchain/wiki/FAQ) for
+Please check out the [wiki](https://github.com/HiveProject2021/chives-blockchain/wiki)
+and [FAQ](https://github.com/HiveProject2021/chives-blockchain/wiki/FAQ) for
 information on this project.
 
 Python 3.7+ is required. Make sure your default python version is >=3.7
@@ -40,13 +40,13 @@ for consensus.
 ## Installing
 
 Install instructions are available in the
-[INSTALL](https://github.com/Chives-Network/chives-blockchain/wiki/INSTALL)
+[INSTALL](https://github.com/HiveProject2021/chives-blockchain/wiki/INSTALL)
 section of the
-[chives-blockchain repository wiki](https://github.com/Chives-Network/chives-blockchain/wiki).
+[chives-blockchain repository wiki](https://github.com/HiveProject2021/chives-blockchain/wiki).
 
 ## Running
 
 Once installed, a
-[Quick Start Guide](https://github.com/Chives-Network/chives-blockchain/wiki/Quick-Start-Guide)
+[Quick Start Guide](https://github.com/HiveProject2021/chives-blockchain/wiki/Quick-Start-Guide)
 is available from the repository
-[wiki](https://github.com/Chives-Network/chives-blockchain/wiki).
+[wiki](https://github.com/HiveProject2021/chives-blockchain/wiki).

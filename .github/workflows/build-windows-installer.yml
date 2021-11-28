@@ -116,8 +116,8 @@ jobs:
     - name: Get latest madmax plotter
       run: |
         mkdir "$env:GITHUB_WORKSPACE\madmax"
-        Invoke-WebRequest https://github.com/Chives-Network/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chives_plot.exe"
-        Invoke-WebRequest https://github.com/Chives-Network/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot_k34-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chives_plot_k34.exe"
+        Invoke-WebRequest https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chives_plot.exe"
+        Invoke-WebRequest https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot_k34-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chives_plot_k34.exe"
 
       # Get the most recent release from bladebit
     - uses: actions/github-script@v4
@@ -135,7 +135,7 @@ jobs:
     - name: Get latest bladebit plotter
       run: |
         mkdir "$env:GITHUB_WORKSPACE\bladebit"
-        Invoke-WebRequest https://github.com/Chives-Network/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-windows-x86-64.zip -OutFile "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
+        Invoke-WebRequest https://github.com/HiveProject2021/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-windows-x86-64.zip -OutFile "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
         Expand-Archive -Path "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip" -DestinationPath "$env:GITHUB_WORKSPACE\bladebit\"
         rm "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
 

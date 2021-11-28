@@ -29,7 +29,7 @@ def init_cmd(ctx: click.Context, create_certs: str, fix_ssl_permissions: bool, t
     - Run `chives init -c [directory]` on your remote harvester,
       where [directory] is the the copy of your Farming Machine CA directory
     - Get more details on remote harvester on Chives wiki:
-      https://github.com/Chives-Network/chives-blockchain/wiki/Farming-on-many-machines
+      https://github.com/HiveProject2021/chives-blockchain/wiki/Farming-on-many-machines
     """
     from pathlib import Path
     from .init_funcs import init

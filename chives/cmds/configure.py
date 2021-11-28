@@ -92,7 +92,7 @@ def configure(
     if testnet:
         if testnet == "true" or testnet == "t":
             print("Setting Testnet")
-            testnet_port = "58444"
+            testnet_port = "59699"
             testnet_introducer = "beta1_introducer.chivescoin.org"
             testnet_dns_introducer = "dns-introducer-testnet7.chivescoin.org"
             testnet = "testnet7"
@@ -119,7 +119,7 @@ def configure(
 
         elif testnet == "false" or testnet == "f":
             print("Setting Mainnet")
-            mainnet_port = "8444"
+            mainnet_port = "9699"
             mainnet_introducer = "introducer.chivescoin.org"
             mainnet_dns_introducer = "dns-introducer.chivescoin.org"
             net = "mainnet"

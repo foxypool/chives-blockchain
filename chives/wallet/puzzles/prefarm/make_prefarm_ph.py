@@ -1,7 +1,7 @@
 from clvm.casts import int_from_bytes
 from clvm_tools import binutils
 
-from chives.consensus.block_rewards import calculate_base_farmer_reward, calculate_pool_reward
+from chives.consensus.block_rewards import calculate_base_community_reward,calculate_base_farmer_reward, calculate_pool_reward
 from chives.types.blockchain_format.program import Program
 from chives.types.condition_opcodes import ConditionOpcode
 from chives.util.bech32m import decode_puzzle_hash, encode_puzzle_hash
@@ -16,9 +16,11 @@ ph2 = decode_puzzle_hash(address2)
 
 pool_amounts = int(calculate_pool_reward(uint32(0)) / 2)
 farmer_amounts = int(calculate_base_farmer_reward(uint32(0)) / 2)
+community_amounts = int(calculate_base_community_reward(uint32(0)) / 2)
 
 assert pool_amounts * 2 == calculate_pool_reward(uint32(0))
 assert farmer_amounts * 2 == calculate_base_farmer_reward(uint32(0))
+assert community_amounts * 2 == calculate_base_community_reward(uint32(0))
 
 
 def make_puzzle(amount: int) -> int:
@@ -57,5 +59,7 @@ print("Pool address: ")
 total_chives += make_puzzle(pool_amounts)
 print("\nFarmer address: ")
 total_chives += make_puzzle(farmer_amounts)
+print("\nFarmer address: ")
+total_chives += make_puzzle(community_amounts)
 
-assert total_chives == calculate_base_farmer_reward(uint32(0)) + calculate_pool_reward(uint32(0))
+assert total_chives == calculate_base_community_reward(uint32(0)) + calculate_base_farmer_reward(uint32(0)) + calculate_pool_reward(uint32(0))

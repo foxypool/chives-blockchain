@@ -1,6 +1,6 @@
 # chives-blockchain
 
-![Alt text](https://www.chives.net/img/chives_logo.svg)
+![Alt text](https://www.chivescoin.org/img/chives_logo.svg)
 
 | Current Release/main | Development Branch/dev |
 |         :---:          |          :---:         |

@@ -221,8 +221,8 @@ class TestRpc:
 
             root_path = farmer_api.farmer._root_path
             config = load_config(root_path, "config.yaml")
-            assert config["farmer"]["xch_target_address"] == encode_puzzle_hash(new_ph, "xch")
-            assert config["pool"]["xch_target_address"] == encode_puzzle_hash(new_ph_3, "xch")
+            assert config["farmer"]["xcc_target_address"] == encode_puzzle_hash(new_ph, "xch")
+            assert config["pool"]["xcc_target_address"] == encode_puzzle_hash(new_ph_3, "xch")
 
             new_ph_3_encoded = encode_puzzle_hash(new_ph_3, "xch")
             added_char = new_ph_3_encoded + "a"

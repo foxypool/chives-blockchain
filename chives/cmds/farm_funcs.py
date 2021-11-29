@@ -281,7 +281,7 @@ async def summary(
 
 
 async def uploadfarmerdata(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port: int, farmer_rpc_port: int) -> None:
-    plots = await get_plots(harvester_rpc_port)
+    all_harvesters = await get_harvesters(farmer_rpc_port)
     blockchain_state = await get_blockchain_state(rpc_port)
     farmer_running = await is_farmer_running(farmer_rpc_port)
 
@@ -307,12 +307,36 @@ async def uploadfarmerdata(rpc_port: int, wallet_rpc_port: int, harvester_rpc_po
         FarmingStatus = "Not running"
     else:
         FarmingStatus = "Farming"
+    
+    
+    if all_harvesters is not None:
+        harvesters_local: dict = {}
+        harvesters_remote: dict = {}
+        for harvester in all_harvesters["harvesters"]:
+            ip = harvester["connection"]["host"]
+            if is_localhost(ip):
+                harvesters_local[harvester["connection"]["node_id"]] = harvester
+            else:
+                if ip not in harvesters_remote:
+                    harvesters_remote[ip] = {}
+                harvesters_remote[ip][harvester["connection"]["node_id"]] = harvester
 
-    total_plot_size = 0
-    if plots is not None:
-        total_plot_size = sum(map(lambda x: x["file_size"], plots["plots"]))
-        PlotCount = len(plots['plots'])
-        TotalSizeOfPlots = format_bytes(total_plot_size)
+        def process_harvesters(harvester_peers_in: dict):
+            for harvester_peer_id, plots in harvester_peers_in.items():
+                total_plot_size_harvester = sum(map(lambda x: x["file_size"], plots["plots"]))
+                PlotStats.total_plot_size += total_plot_size_harvester
+                PlotStats.total_plots += len(plots["plots"])
+                print(f"   {len(plots['plots'])} plots of size: {format_bytes(total_plot_size_harvester)}")
+
+        if len(harvesters_local) > 0:
+            print(f"Local Harvester{'s' if len(harvesters_local) > 1 else ''}")
+            process_harvesters(harvesters_local)
+        for harvester_ip, harvester_peers in harvesters_remote.items():
+            print(f"Remote Harvester{'s' if len(harvester_peers) > 1 else ''} for IP: {harvester_ip}")
+            process_harvesters(harvester_peers)
+
+        PlotCount = PlotStats.total_plots
+        TotalSizeOfPlots = format_bytes(PlotStats.total_plot_size)
     else:
         PlotCount = "Unknown"
         TotalSizeOfPlots = "Unknown"
@@ -323,15 +347,15 @@ async def uploadfarmerdata(rpc_port: int, wallet_rpc_port: int, harvester_rpc_po
         EstimatedNetworkSpace = "Unknown"
 
     minutes = -1
-    if blockchain_state is not None and plots is not None:
-        proportion = total_plot_size / blockchain_state["space"] if blockchain_state["space"] else -1
+    if blockchain_state is not None and all_harvesters is not None:
+        proportion = PlotStats.total_plot_size / blockchain_state["space"] if blockchain_state["space"] else -1
         minutes = int((await get_average_block_time(rpc_port) / 60) / proportion) if proportion else -1
 
-    if plots is not None and len(plots["plots"]) == 0:
+    if all_harvesters is not None and PlotStats.total_plots == 0:
         ExpectedTimeToWin = "Never (no plots)"
     else:
         ExpectedTimeToWin = format_minutes(minutes)
-    
+
     signage_points = await get_challenges(farmer_rpc_port)
     if signage_points is None:
         ""

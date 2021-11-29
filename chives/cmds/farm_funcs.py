@@ -308,7 +308,10 @@ async def uploadfarmerdata(rpc_port: int, wallet_rpc_port: int, harvester_rpc_po
     else:
         FarmingStatus = "Farming"
     
-    
+    class PlotStats:
+        total_plot_size = 0
+        total_plots = 0
+        
     if all_harvesters is not None:
         harvesters_local: dict = {}
         harvesters_remote: dict = {}

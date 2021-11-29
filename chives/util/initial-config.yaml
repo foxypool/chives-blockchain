@@ -52,7 +52,7 @@ network_overrides: &network_overrides
       NETWORK_TYPE: 1
       MEMPOOL_BLOCK_BUFFER: 10
       EPOCH_BLOCKS: 768
-      DIFFICULTY_STARTING: 30
+      DIFFICULTY_STARTING: 4
     testnet5:
       DIFFICULTY_CONSTANT_FACTOR: 10052721566054
       GENESIS_CHALLENGE: ee7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015af
@@ -62,7 +62,7 @@ network_overrides: &network_overrides
       NETWORK_TYPE: 1
       MEMPOOL_BLOCK_BUFFER: 10
       EPOCH_BLOCKS: 768
-      DIFFICULTY_STARTING: 30
+      DIFFICULTY_STARTING: 4
     testnet7:
       DIFFICULTY_CONSTANT_FACTOR: 10052721566054
       GENESIS_CHALLENGE: 117816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015af
@@ -72,7 +72,7 @@ network_overrides: &network_overrides
       NETWORK_TYPE: 1
       MEMPOOL_BLOCK_BUFFER: 10
       EPOCH_BLOCKS: 768
-      DIFFICULTY_STARTING: 30
+      DIFFICULTY_STARTING: 4
   config:
     mainnet:
       address_prefix: "xcc"

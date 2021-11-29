@@ -5,4 +5,4 @@
 [submodule "mozilla-ca"]
 	path = mozilla-ca
 	url = https://github.com/HiveProject2021/mozilla-ca.git
-        branch = main
+    branch = main

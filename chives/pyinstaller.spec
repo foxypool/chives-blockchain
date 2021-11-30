@@ -70,29 +70,15 @@ hiddenimports = []
 hiddenimports.extend(entry_points)
 hiddenimports.extend(keyring_imports)
 
-'''
+
 binaries = [
-    (
-        f"{ROOT}/madmax/chives_plot",
-        "madmax"
-    ),
-    (
-        f"{ROOT}/madmax/chives_plot_k34",
-        "madmax"
-    )
 ]
-'''
 
 binaries = []
 if not THIS_IS_MAC:
     pass
-    '''
     binaries.extend([
-        (
-            f"{ROOT}/bladebit/bladebit",
-            "bladebit"
-        )
-    ])'''
+    ])
 
 if THIS_IS_WINDOWS:
     hiddenimports.extend(["win32timezone", "win32cred", "pywintypes", "win32ctypes.pywin32"])
@@ -118,19 +104,6 @@ if THIS_IS_WINDOWS:
             "C:\\Windows\\System32\\vcruntime140_1.dll",
             ".",
         ),
-        '''
-        (
-            f"{ROOT}\\madmax\\chives_plot.exe",
-            "madmax"
-        ),
-        (
-            f"{ROOT}\\madmax\\chives_plot_k34.exe",
-            "madmax"
-        ),
-        (
-            f"{ROOT}\\bladebit\\bladebit.exe",
-            "bladebit"
-        ),'''
     ]
 
 

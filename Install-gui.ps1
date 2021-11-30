@@ -23,7 +23,7 @@ try {
 
     $ErrorActionPreference = "SilentlyContinue"
     npm install --loglevel=error
-    npm audit fix
+    npm audit fix --force
     npm run build
     py ..\installhelper.py
 

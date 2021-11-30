@@ -123,7 +123,7 @@ kwargs = dict(
         "mozilla-ca": ["cacert.pem"],
     },
     use_scm_version={"fallback_version": "unknown-no-.git-directory"},
-    long_description=open("README.md").read(),
+    long_description=open("README.md", encoding='UTF-8').read(),
     long_description_content_type="text/markdown",
     zip_safe=False,
 )

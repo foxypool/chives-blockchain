@@ -2,6 +2,7 @@
 
 $ErrorActionPreference = "Stop"
 
+rm build_scripts\win_build
 mkdir build_scripts\win_build
 Set-Location -Path ".\build_scripts\win_build" -PassThru
 
@@ -18,7 +19,7 @@ If ($LastExitCode -gt 0){
 }
 else
 {
-    Set-Location -Path - -PassThru
+    Set-Location -Path "../../" -PassThru
     Write-Output "miniupnpc download successful."
 }
 
@@ -82,6 +83,7 @@ Write-Output "   ---"
 Write-Output "Use pyinstaller to create chives .exe's"
 Write-Output "   ---"
 $SPEC_FILE = (python -c 'import chives; print(chives.PYINSTALLER_SPEC_PATH)') -join "`n"
+Write-Output $SPEC_FILE
 pyinstaller --log-level INFO $SPEC_FILE
 
 Write-Output "   ---"

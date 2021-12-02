@@ -1127,7 +1127,6 @@ class WalletRpcApi:
         amount = 0
         pool_reward_amount = 0
         farmer_reward_amount = 0
-        community_reward_amount = 0
         fee_amount = 0
         last_height_farmed = 0
         for record in tx_records:
@@ -1139,30 +1138,23 @@ class WalletRpcApi:
                     continue
                 pool_reward_amount += record.amount
             height = record.height_farmed(self.service.constants.GENESIS_CHALLENGE)
-            if record.type == TransactionType.FEE_REWARD:
-                fee_amount += record.amount - calculate_base_farmer_reward(height)
-                farmer_reward_amount += calculate_base_farmer_reward(height)
-            if height > last_height_farmed:
-                last_height_farmed = height
             # Chives Network Code
             # Do not need to calculate the Community Rewards Amount To Wallet Card
+            # 只添加了一行代码,余下的代码只是做了缩进
             if( uint64(calculate_base_community_reward(height)) != uint64(record.amount) ):
-                if record.type == TransactionType.COINBASE_REWARD:
-                    pool_reward_amount += record.amount
                 if record.type == TransactionType.FEE_REWARD:
                     fee_amount += record.amount - calculate_base_farmer_reward(height)
                     farmer_reward_amount += calculate_base_farmer_reward(height)
+                if height > last_height_farmed:
+                    last_height_farmed = height
                 amount += record.amount
-            # log.warning("############for record in tx_records:")
-            # log.warning(record.amount)
-            # log.warning(calculate_base_farmer_reward(height))
 
         assert amount == pool_reward_amount + farmer_reward_amount + fee_amount
         return {
             "farmed_amount": amount,
             "pool_reward_amount": pool_reward_amount,
             "farmer_reward_amount": farmer_reward_amount,
-            "community_reward_amount": community_reward_amount,
+            "community_reward_amount": 0,
             "fee_amount": fee_amount,
             "last_height_farmed": last_height_farmed,
         }

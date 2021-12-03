@@ -38,8 +38,8 @@ if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 	exit $LAST_EXIT_CODE
 fi
 cp -r dist/daemon ../chives-blockchain-gui
-cd .. || exit
-cd chives-blockchain-gui || exit
+cd ..
+cd chives-blockchain-gui
 
 echo "npm build"
 npm install

@@ -48,7 +48,7 @@ cd chives-blockchain-gui || exit
 
 echo "npm build"
 npm install
-npm audit fix
+npm audit fix --force
 npm run build
 LAST_EXIT_CODE=$?
 if [ "$LAST_EXIT_CODE" -ne 0 ]; then

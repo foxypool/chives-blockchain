@@ -425,6 +425,12 @@ if (!handleSquirrelEvent()) {
             },
           },
           {
+            label: i18n._(/* i18n */ { id: 'Igi Pool' }),
+            click: () => {
+              openExternal('https://xcc.igipool.one');
+            },
+          },
+          {
             label: i18n._(/* i18n */ { id: 'Twitter' }),
             click: () => {
               openExternal('https://twitter.com/chivesxcc');

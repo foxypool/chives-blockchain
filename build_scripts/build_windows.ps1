@@ -36,6 +36,8 @@
 
 $ErrorActionPreference = "Stop"
 
+git submodule update --init --recursive
+
 if(Test-Path '.\build_scripts\win_build')			{
 	Remove-Item '.\build_scripts\win_build' -Recurse
 }

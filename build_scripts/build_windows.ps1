@@ -37,7 +37,7 @@
 $ErrorActionPreference = "Stop"
 
 git submodule update --init --recursive
-	
+
 if(Test-Path '.\build_scripts\win_build')			{
 	Remove-Item '.\build_scripts\win_build' -Recurse
 }
@@ -64,8 +64,6 @@ if(Test-Path '.\chives-blockchain-gui\build')			{
 }
 
 Set-Location -Path ".\build_scripts\win_build" -PassThru
-
-git status
 
 Write-Output "   ---"
 Write-Output "curl miniupnpc"
@@ -155,10 +153,6 @@ Write-Output "   ---"
 Copy-Item "dist\daemon" -Destination "..\chives-blockchain-gui\" -Recurse
 Set-Location -Path "..\chives-blockchain-gui" -PassThru
 
-git stash
-git pull origin main
-git status
-
 Write-Output "   ---"
 Write-Output "Prepare Electron packager"
 Write-Output "   ---"
@@ -167,10 +161,6 @@ npm install --save-dev electron-winstaller
 npm install -g electron-packager
 npm install
 npm audit fix
-
-git stash
-git pull origin main
-git status
 
 Write-Output "   ---"
 Write-Output "Electron package Windows Installer"
@@ -201,8 +191,6 @@ Write-Output "node winstaller.js"
 node winstaller.js
 Write-Output "   ---"
 
-git status
-
 If ($env:HAS_SECRET) {
    Write-Output "   ---"
    Write-Output "Add timestamp and verify signature"
@@ -212,8 +200,6 @@ If ($env:HAS_SECRET) {
    }   Else    {
    Write-Output "Skipping timestamp and verify signatures - no authorization to install certificates"
 }
-
-git status
 
 Write-Output "   ---"
 Write-Output "Windows Installer complete"

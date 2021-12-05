@@ -60,7 +60,7 @@ Anyone can become a master node, which provides another channel for people to pa
 
 3) The problem that the community does not obtain block rewards.
 
-Currently in Chia’s model, only two groups of officials and miners can obtain block rewards: The official team who owns Chives by reserving 21 million coins, and miners who need to buy a lot of equipment and participate in mining to gain income.
+Currently in Chia’s model, only two groups of officials and miners can obtain block rewards: The official team who owns Chia by reserving 21 million coins, and miners who need to buy a lot of equipment and participate in mining to gain income.
 
 All those who have done publicity and promotion for Chia, have contributed, but will not receive any of the block rewards. This situation violates the spirit of community participation in fairness and openness.
 

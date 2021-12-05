@@ -16,13 +16,13 @@ fi
 echo "Chives Installer Version is: $CHIVES_INSTALLER_VERSION"
 
 echo "Installing npm and electron packagers"
-npm install electron-installer-dmg -g
+sudo npm install electron-installer-dmg -g
 # Pinning electron-packager and electron-osx-sign to known working versions
 # Current packager uses an old version of osx-sign, so if we install the newer sign package
 # things break
-npm install electron-packager@15.4.0 -g
-npm install electron-osx-sign@v0.5.0 -g
-npm install notarize-cli -g
+sudo npm install electron-packager@15.4.0 -g
+sudo npm install electron-osx-sign@v0.5.0 -g
+sudo npm install notarize-cli -g
 
 echo "Create dist/"
 sudo rm -rf dist
@@ -38,12 +38,12 @@ if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 	exit $LAST_EXIT_CODE
 fi
 cp -r dist/daemon ../chives-blockchain-gui
-cd .. || exit
-cd chives-blockchain-gui || exit
+cd ..
+cd chives-blockchain-gui
 
 echo "npm build"
 npm install
-npm audit fix
+npm audit fix --force
 npm run build
 LAST_EXIT_CODE=$?
 if [ "$LAST_EXIT_CODE" -ne 0 ]; then
@@ -52,9 +52,9 @@ if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 fi
 
 # sets the version for chives-blockchain in package.json
-brew install jq
-cp package.json package.json.orig
-jq --arg VER "$CHIVES_INSTALLER_VERSION" '.version=$VER' package.json > temp.json && mv temp.json package.json
+#brew install jq
+#cp package.json package.json.orig
+#jq --arg VER "$CHIVES_INSTALLER_VERSION" '.version=$VER' package.json > temp.json && mv temp.json package.json
 
 electron-packager . Chives --asar.unpack="**/daemon/**" --platform=darwin \
 --icon=src/assets/img/Chives.icns --overwrite --app-bundle-id=net.chives.blockchain \
@@ -62,7 +62,7 @@ electron-packager . Chives --asar.unpack="**/daemon/**" --platform=darwin \
 LAST_EXIT_CODE=$?
 
 # reset the package.json to the original
-mv package.json.orig package.json
+# mv package.json.orig package.json
 
 if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 	echo >&2 "electron-packager failed!"

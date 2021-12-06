@@ -6,7 +6,7 @@ from setuptools_scm import get_version
 
 # example: 1.0b5.dev225
 def main():
-    print("1.1.906")
+    print("1.2.11")
     return
 
     windows = len(sys.argv) > 1 and "win" in sys.argv[1]  # Special case windows to 0.1.6225

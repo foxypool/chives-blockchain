@@ -37,13 +37,11 @@
 $ErrorActionPreference = "Stop"
 
 git submodule update --init --recursive
-	
+
 if(Test-Path '.\build_scripts\win_build')			{
-	# Remove-Item '.\build_scripts\win_build' -Recurse
+	Remove-Item '.\build_scripts\win_build' -Recurse
 }
-else   {
-	mkdir build_scripts\win_build
-}
+mkdir build_scripts\win_build
 
 if(Test-Path '.\build_scripts\build\daemon')			{
 	Remove-Item '.\build_scripts\build\daemon' -Recurse
@@ -67,8 +65,6 @@ if(Test-Path '.\chives-blockchain-gui\build')			{
 
 Set-Location -Path ".\build_scripts\win_build" -PassThru
 
-git status
-
 Write-Output "   ---"
 Write-Output "curl miniupnpc"
 Write-Output "   ---"
@@ -80,7 +76,7 @@ If ($LastExitCode -gt 0){
 }
 else
 {
-    Set-Location -Path ../../ -PassThru
+    Set-Location -Path - -PassThru
     Write-Output "miniupnpc download successful."
 }
 
@@ -92,7 +88,7 @@ python -m venv venv
 python -m pip install --upgrade pip
 pip install wheel pep517
 pip install pywin32
-pip install pyinstaller==4.2
+pip install pyinstaller==4.5
 pip install setuptools_scm
 pip install requests
 
@@ -101,7 +97,7 @@ Write-Output "Get CHIVES_INSTALLER_VERSION"
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined
 $env:CHIVES_INSTALLER_VERSION = python .\build_scripts\installer-version.py -win
 
-$env:CHIVES_INSTALLER_VERSION = "1.1.906"
+# $env:CHIVES_INSTALLER_VERSION = "1.1.907"
 
 if (-not (Test-Path env:CHIVES_INSTALLER_VERSION)) {
   $env:CHIVES_INSTALLER_VERSION = '0.0.0'
@@ -109,6 +105,20 @@ if (-not (Test-Path env:CHIVES_INSTALLER_VERSION)) {
   }
 Write-Output "Chives Version is: $env:CHIVES_INSTALLER_VERSION"
 Write-Output "   ---"
+
+Write-Output "Checking if madmax exists"
+Write-Output "   ---"
+if (Test-Path -Path .\madmax\) {
+    Write-Output "   madmax exists, moving to expected directory"
+    mv .\madmax\ .\venv\lib\site-packages\
+}
+
+Write-Output "Checking if bladebit exists"
+Write-Output "   ---"
+if (Test-Path -Path .\bladebit\) {
+    Write-Output "   bladebit exists, moving to expected directory"
+    mv .\bladebit\ .\venv\lib\site-packages\
+}
 
 Write-Output "   ---"
 Write-Output "Build chives-blockchain wheels"
@@ -132,29 +142,25 @@ Write-Output "   ---"
 Write-Output "Use pyinstaller to create chives .exe's"
 Write-Output "   ---"
 $SPEC_FILE = (python -c 'import chives; print(chives.PYINSTALLER_SPEC_PATH)') -join "`n"
-pyinstaller --paths C:\Python39 --log-level INFO $SPEC_FILE
+Write-Output $SPEC_FILE
+pyinstaller --log-level INFO $SPEC_FILE
 
+Write-Output "   ---"
+Write-Output "Copy chives executables to chives-blockchain-gui\"
 Write-Output "   ---"
 Write-Output "Copy chives executables to chives-blockchain-gui\"
 Write-Output "   ---"
 Copy-Item "dist\daemon" -Destination "..\chives-blockchain-gui\" -Recurse
 Set-Location -Path "..\chives-blockchain-gui" -PassThru
 
-git stash
-git pull origin main
-git status
-
 Write-Output "   ---"
 Write-Output "Prepare Electron packager"
 Write-Output "   ---"
+$Env:NODE_OPTIONS = "--max-old-space-size=3000"
 npm install --save-dev electron-winstaller
 npm install -g electron-packager
 npm install
 npm audit fix
-
-git stash
-git pull origin main
-git status
 
 Write-Output "   ---"
 Write-Output "Electron package Windows Installer"
@@ -171,9 +177,18 @@ editbin.exe /STACK:8000000 daemon\chives.exe
 Write-Output "   ---"
 
 $packageVersion = "$env:CHIVES_INSTALLER_VERSION"
-$packageName = "chives-$packageVersion"
+$packageName = "Chives-$packageVersion"
 
 Write-Output "packageName is $packageName"
+
+Write-Output "   ---"
+Write-Output "fix version in package.json"
+choco install jq
+cp package.json package.json.orig
+jq --arg VER "$env:CHIVES_INSTALLER_VERSION" '.version=$VER' package.json > temp.json
+rm package.json
+mv temp.json package.json
+Write-Output "   ---"
 
 Write-Output "   ---"
 Write-Output "electron-packager"
@@ -185,13 +200,12 @@ Write-Output "node winstaller.js"
 node winstaller.js
 Write-Output "   ---"
 
-
 If ($env:HAS_SECRET) {
    Write-Output "   ---"
    Write-Output "Add timestamp and verify signature"
    Write-Output "   ---"
-   signtool.exe timestamp /v /t http://timestamp.comodoca.com/ .\release-builds\windows-installer\ChiaSetup-$packageVersion.exe
-   signtool.exe verify /v /pa .\release-builds\windows-installer\ChiaSetup-$packageVersion.exe
+   signtool.exe timestamp /v /t http://timestamp.comodoca.com/ .\release-builds\windows-installer\ChivesSetup-$packageVersion.exe
+   signtool.exe verify /v /pa .\release-builds\windows-installer\ChivesSetup-$packageVersion.exe
    }   Else    {
    Write-Output "Skipping timestamp and verify signatures - no authorization to install certificates"
 }

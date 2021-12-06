@@ -21,8 +21,9 @@ from chives.types.blockchain_format.sub_epoch_summary import SubEpochSummary
 from chives.types.full_block import FullBlock
 from chives.types.generator_types import BlockGenerator
 from chives.types.header_block import HeaderBlock
+from chives.types.unfinished_block import UnfinishedBlock
 from chives.util.block_cache import BlockCache
-from chives.util.errors import Err
+from chives.util.errors import Err, ValidationError
 from chives.util.generator_tools import get_block_header, tx_removals_and_additions
 from chives.util.ints import uint16, uint64, uint32
 from chives.util.streamable import Streamable, dataclass_from_dict, streamable
@@ -49,7 +50,7 @@ def batch_pre_validate_blocks(
     expected_difficulty: List[uint64],
     expected_sub_slot_iters: List[uint64],
 ) -> List[bytes]:
-    blocks = {}
+    blocks: Dict[bytes, BlockRecord] = {}
     for k, v in blocks_pickled.items():
         blocks[k] = BlockRecord.from_bytes(v)
     results: List[PreValidationResult] = []
@@ -78,7 +79,10 @@ def batch_pre_validate_blocks(
                     block_generator: BlockGenerator = BlockGenerator.from_bytes(prev_generator_bytes)
                     assert block_generator.program == block.transactions_generator
                     npc_result = get_name_puzzle_conditions(
-                        block_generator, min(constants.MAX_BLOCK_COST_CLVM, block.transactions_info.cost), True
+                        block_generator,
+                        min(constants.MAX_BLOCK_COST_CLVM, block.transactions_info.cost),
+                        cost_per_byte=constants.COST_PER_BYTE,
+                        safe_mode=True,
                     )
                     removals, tx_additions = tx_removals_and_additions(npc_result.npc_list)
 
@@ -156,7 +160,6 @@ async def pre_validate_blocks_multiprocessing(
     recent_blocks_compressed: Dict[bytes32, BlockRecord] = {}
     num_sub_slots_found = 0
     num_blocks_seen = 0
-
     if blocks[0].height > 0:
         if not block_records.contains_block(blocks[0].prev_header_hash):
             return [PreValidationResult(uint16(Err.INVALID_PREV_BLOCK_HASH.value), None, None)]
@@ -314,3 +317,34 @@ async def pre_validate_blocks_multiprocessing(
         for batch_result in (await asyncio.gather(*futures))
         for result in batch_result
     ]
+
+
+def _run_generator(
+    constants_dict: bytes,
+    unfinished_block_bytes: bytes,
+    block_generator_bytes: bytes,
+) -> Tuple[Optional[Err], Optional[bytes]]:
+    """
+    Runs the CLVM generator from bytes inputs. This is meant to be called under a ProcessPoolExecutor, in order to
+    validate the heavy parts of a block (clvm program) in a different process.
+    """
+    try:
+        constants: ConsensusConstants = dataclass_from_dict(ConsensusConstants, constants_dict)
+        unfinished_block: UnfinishedBlock = UnfinishedBlock.from_bytes(unfinished_block_bytes)
+        assert unfinished_block.transactions_info is not None
+        block_generator: BlockGenerator = BlockGenerator.from_bytes(block_generator_bytes)
+        assert block_generator.program == unfinished_block.transactions_generator
+        npc_result: NPCResult = get_name_puzzle_conditions(
+            block_generator,
+            min(constants.MAX_BLOCK_COST_CLVM, unfinished_block.transactions_info.cost),
+            cost_per_byte=constants.COST_PER_BYTE,
+            safe_mode=False,
+        )
+        if npc_result.error is not None:
+            return Err(npc_result.error), None
+    except ValidationError as e:
+        return e.code, None
+    except Exception:
+        return Err.UNKNOWN, None
+
+    return None, bytes(npc_result)

@@ -1,3 +1,6 @@
+#
+# THIS FILE IS GENERATED. SEE https://github.com/HiveProject2021/chives-blockchain/tree/main/tests#readme
+#
 name: Ubuntu TEST_NAME Test
 
 on:
@@ -25,7 +28,7 @@ jobs:
     steps:
     - name: Cancel previous runs on the same branch
       if: ${{ github.ref != 'refs/heads/main' }}
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ github.token }}
 
@@ -40,7 +43,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache npm
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: ~/.npm
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -53,7 +56,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
 
     - name: Cache pip
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
@@ -61,13 +64,6 @@ jobs:
           ${{ runner.os }}-pip-
 
 CHECKOUT_TEST_BLOCKS_AND_PLOTS
-
-    - name: Link home directory
-      run: |
-        cd $HOME
-        ln -s $GITHUB_WORKSPACE/.chives
-        echo "$HOME/.chives"
-        ls -al $HOME/.chives
 
     - name: Install ubuntu dependencies
       run: |
@@ -80,16 +76,16 @@ CHECKOUT_TEST_BLOCKS_AND_PLOTS
       env:
         INSTALL_PYTHON_VERSION: ${{ matrix.python-version }}
       run: |
-        sh install.sh
+        sh install.sh -d
 
 INSTALL_TIMELORD
-
-    - name: Install developer requirements
-      run: |
-        . ./activate
-        venv/bin/python -m pip install pytest pytest-asyncio pytest-xdist
 
     - name: Test TEST_NAME code with pytest
       run: |
         . ./activate
-        ./venv/bin/py.test TEST_DIR -s -v --durations 0 PYTEST_PARALLEL_ARGS
+        ./venv/bin/py.test TEST_DIR -s -v --durations 0PYTEST_PARALLEL_ARGS
+
+CHECK_RESOURCE_USAGE
+#
+# THIS FILE IS GENERATED. SEE https://github.com/HiveProject2021/chives-blockchain/tree/main/tests#readme
+#

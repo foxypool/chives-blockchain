@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 class WalletPuzzleStore:
     """
     WalletPuzzleStore keeps track of all generated puzzle_hashes and their derivation path / wallet.
+    This is only used for HD wallets where each address is derived from a public key. Otherwise, use the
+    WalletInterestedStore to keep track of puzzle hashes which we are interested in.
     """
 
     db_connection: aiosqlite.Connection
@@ -33,8 +35,6 @@ class WalletPuzzleStore:
 
         self.db_wrapper = db_wrapper
         self.db_connection = self.db_wrapper.db
-        await self.db_connection.execute("pragma journal_mode=wal")
-        await self.db_connection.execute("pragma synchronous=2")
         await self.db_connection.execute(
             (
                 "CREATE TABLE IF NOT EXISTS derivation_paths("
@@ -77,11 +77,14 @@ class WalletPuzzleStore:
         await cursor.close()
         await self.db_connection.commit()
 
-    async def add_derivation_paths(self, records: List[DerivationRecord]) -> None:
+    async def add_derivation_paths(self, records: List[DerivationRecord], in_transaction=False) -> None:
         """
         Insert many derivation paths into the database.
         """
-        async with self.db_wrapper.lock:
+
+        if not in_transaction:
+            await self.db_wrapper.lock.acquire()
+        try:
             sql_records = []
             for record in records:
                 self.all_puzzle_hashes.add(record.puzzle_hash)
@@ -102,7 +105,10 @@ class WalletPuzzleStore:
             )
 
             await cursor.close()
-            await self.db_connection.commit()
+        finally:
+            if not in_transaction:
+                await self.db_connection.commit()
+                self.db_wrapper.lock.release()
 
     async def get_derivation_record(self, index: uint32, wallet_id: uint32) -> Optional[DerivationRecord]:
         """
@@ -129,13 +135,13 @@ class WalletPuzzleStore:
 
         return None
 
-    async def get_derivation_record_for_puzzle_hash(self, puzzle_hash: str) -> Optional[DerivationRecord]:
+    async def get_derivation_record_for_puzzle_hash(self, puzzle_hash: bytes32) -> Optional[DerivationRecord]:
         """
         Returns the derivation record by index and wallet id.
         """
         cursor = await self.db_connection.execute(
             "SELECT * FROM derivation_paths WHERE puzzle_hash=?;",
-            (puzzle_hash,),
+            (puzzle_hash.hex(),),
         )
         row = await cursor.fetchone()
         await cursor.close()

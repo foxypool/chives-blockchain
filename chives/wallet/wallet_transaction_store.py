@@ -29,9 +29,6 @@ class WalletTransactionStore:
 
         self.db_wrapper = db_wrapper
         self.db_connection = self.db_wrapper.db
-
-        await self.db_connection.execute("pragma journal_mode=wal")
-        await self.db_connection.execute("pragma synchronous=2")
         await self.db_connection.execute(
             (
                 "CREATE TABLE IF NOT EXISTS transaction_record("
@@ -91,9 +88,9 @@ class WalletTransactionStore:
         for record in all_records:
             self.tx_record_cache[record.name] = record
             if record.wallet_id not in self.unconfirmed_for_wallet:
-                self.unconfirmed_for_wallet[record.name] = {}
+                self.unconfirmed_for_wallet[record.wallet_id] = {}
             if not record.confirmed:
-                self.unconfirmed_for_wallet[record.name] = record
+                self.unconfirmed_for_wallet[record.wallet_id][record.name] = record
 
     async def _clear_database(self):
         cursor = await self.db_connection.execute("DELETE FROM transaction_record")
@@ -151,6 +148,8 @@ class WalletTransactionStore:
         current: Optional[TransactionRecord] = await self.get_transaction_record(tx_id)
         if current is None:
             return None
+        if current.confirmed_at_height == height:
+            return
         tx: TransactionRecord = TransactionRecord(
             confirmed_at_height=height,
             created_at_time=current.created_at_time,
@@ -290,7 +289,7 @@ class WalletTransactionStore:
 
         return records
 
-    async def get_farming_rewards(self):
+    async def get_farming_rewards(self) -> List[TransactionRecord]:
         """
         Returns the list of all farming rewards.
         """
@@ -440,3 +439,9 @@ class WalletTransactionStore:
 
         c1 = await self.db_connection.execute("DELETE FROM transaction_record WHERE confirmed_at_height>?", (height,))
         await c1.close()
+
+    async def delete_unconfirmed_transactions(self, wallet_id: int):
+        cursor = await self.db_connection.execute(
+            "DELETE FROM transaction_record WHERE confirmed=0 AND wallet_id=?", (wallet_id,)
+        )
+        await cursor.close()

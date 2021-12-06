@@ -5,7 +5,7 @@ import pytest
 from clvm.casts import int_to_bytes
 
 from chives.consensus.blockchain import ReceiveBlockResult
-from chives.protocols import full_node_protocol
+from chives.protocols import full_node_protocol, wallet_protocol
 from chives.types.announcement import Announcement
 from chives.types.condition_opcodes import ConditionOpcode
 from chives.types.condition_with_args import ConditionWithArgs
@@ -13,7 +13,6 @@ from chives.types.spend_bundle import SpendBundle
 from chives.util.errors import ConsensusError, Err
 from chives.util.ints import uint64
 from tests.wallet_tools import WalletTool
-from tests.core.full_node.test_full_node import connect_and_get_peer
 from tests.setup_nodes import bt, setup_two_nodes, test_constants
 from tests.util.generator_tools_testing import run_and_get_removals_and_additions
 
@@ -48,7 +47,6 @@ class TestBlockchainTransactions:
             num_blocks, farmer_reward_puzzle_hash=coinbase_puzzlehash, guarantee_transaction_block=True
         )
         full_node_api_1, full_node_api_2, server_1, server_2 = two_nodes
-        peer = await connect_and_get_peer(server_1, server_2)
         full_node_1 = full_node_api_1.full_node
 
         for block in blocks:
@@ -63,8 +61,9 @@ class TestBlockchainTransactions:
         spend_bundle = wallet_a.generate_signed_transaction(1000, receiver_puzzlehash, spend_coin)
 
         assert spend_bundle is not None
-        tx: full_node_protocol.RespondTransaction = full_node_protocol.RespondTransaction(spend_bundle)
-        await full_node_api_1.respond_transaction(tx, peer)
+        tx: wallet_protocol.SendTransaction = wallet_protocol.SendTransaction(spend_bundle)
+
+        await full_node_api_1.send_transaction(tx)
 
         sb = full_node_1.mempool_manager.get_spendbundle(spend_bundle.name())
         assert sb is spend_bundle
@@ -134,7 +133,7 @@ class TestBlockchainTransactions:
         )
 
         next_block = new_blocks[-1]
-        res, err, _ = await full_node_1.blockchain.receive_block(next_block)
+        res, err, _, _ = await full_node_1.blockchain.receive_block(next_block)
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.DOUBLE_SPEND
 
@@ -161,21 +160,20 @@ class TestBlockchainTransactions:
             if coin.puzzle_hash == coinbase_puzzlehash:
                 spend_coin = coin
 
-        spend_bundle = wallet_a.generate_signed_transaction(1000, receiver_puzzlehash, spend_coin)
-        spend_bundle_double = wallet_a.generate_signed_transaction(1000, receiver_puzzlehash, spend_coin)
-
-        block_spendbundle = SpendBundle.aggregate([spend_bundle, spend_bundle_double])
+        spend_bundle = wallet_a.generate_signed_transaction(
+            1000, receiver_puzzlehash, spend_coin, additional_outputs=[(receiver_puzzlehash, 1000)]
+        )
 
         new_blocks = bt.get_consecutive_blocks(
             1,
             block_list_input=blocks,
             farmer_reward_puzzle_hash=coinbase_puzzlehash,
-            transaction_data=block_spendbundle,
+            transaction_data=spend_bundle,
             guarantee_transaction_block=True,
         )
 
         next_block = new_blocks[-1]
-        res, err, _ = await full_node_1.blockchain.receive_block(next_block)
+        res, err, _, _ = await full_node_1.blockchain.receive_block(next_block)
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.DUPLICATE_OUTPUT
 
@@ -234,7 +232,7 @@ class TestBlockchainTransactions:
             transaction_data=spend_bundle,
         )
 
-        res, err, _ = await full_node_api_1.full_node.blockchain.receive_block(new_blocks[-1])
+        res, err, _, _ = await full_node_api_1.full_node.blockchain.receive_block(new_blocks[-1])
         assert err is None
         assert res == ReceiveBlockResult.NEW_PEAK
 
@@ -247,7 +245,7 @@ class TestBlockchainTransactions:
             transaction_data=spend_bundle,
         )
 
-        res, err, _ = await full_node_api_1.full_node.blockchain.receive_block(new_blocks_double[-1])
+        res, err, _, _ = await full_node_api_1.full_node.blockchain.receive_block(new_blocks_double[-1])
         assert err is Err.DOUBLE_SPEND
         assert res == ReceiveBlockResult.INVALID_BLOCK
 
@@ -312,7 +310,8 @@ class TestBlockchainTransactions:
             if coin.puzzle_hash == coinbase_puzzlehash:
                 spend_coin = coin
 
-        spend_bundle = wallet_a.generate_signed_transaction(1000, receiver_1_puzzlehash, spend_coin)
+        assert spend_coin
+        spend_bundle = wallet_a.generate_signed_transaction(uint64(1000), receiver_1_puzzlehash, spend_coin)
 
         new_blocks = bt.get_consecutive_blocks(
             1,
@@ -326,13 +325,15 @@ class TestBlockchainTransactions:
         await full_node_api_1.full_node.respond_block(full_node_protocol.RespondBlock(new_blocks[-1]))
 
         coin_2 = None
-        for coin in run_and_get_removals_and_additions(new_blocks[-1], test_constants.MAX_BLOCK_COST_CLVM)[1]:
+        for coin in run_and_get_removals_and_additions(
+            new_blocks[-1], test_constants.MAX_BLOCK_COST_CLVM, test_constants.COST_PER_BYTE
+        )[1]:
             if coin.puzzle_hash == receiver_1_puzzlehash:
                 coin_2 = coin
                 break
         assert coin_2 is not None
 
-        spend_bundle = wallet_a.generate_signed_transaction(1000, receiver_2_puzzlehash, coin_2)
+        spend_bundle = wallet_a.generate_signed_transaction(uint64(1000), receiver_2_puzzlehash, coin_2)
 
         new_blocks = bt.get_consecutive_blocks(
             1,
@@ -345,13 +346,15 @@ class TestBlockchainTransactions:
         await full_node_api_1.full_node.respond_block(full_node_protocol.RespondBlock(new_blocks[-1]))
 
         coin_3 = None
-        for coin in run_and_get_removals_and_additions(new_blocks[-1], test_constants.MAX_BLOCK_COST_CLVM)[1]:
+        for coin in run_and_get_removals_and_additions(
+            new_blocks[-1], test_constants.MAX_BLOCK_COST_CLVM, test_constants.COST_PER_BYTE
+        )[1]:
             if coin.puzzle_hash == receiver_2_puzzlehash:
                 coin_3 = coin
                 break
         assert coin_3 is not None
 
-        spend_bundle = wallet_a.generate_signed_transaction(1000, receiver_3_puzzlehash, coin_3)
+        spend_bundle = wallet_a.generate_signed_transaction(uint64(1000), receiver_3_puzzlehash, coin_3)
 
         new_blocks = bt.get_consecutive_blocks(
             1,
@@ -508,7 +511,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_MY_COIN_ID_FAILED
 
@@ -521,7 +524,7 @@ class TestBlockchainTransactions:
             transaction_data=valid_spend_bundle,
             guarantee_transaction_block=True,
         )
-        res, err, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert res == ReceiveBlockResult.NEW_PEAK
         assert err is None
 
@@ -588,7 +591,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_ANNOUNCE_CONSUMED_FAILED
 
@@ -605,7 +608,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate newly created block
-        res, err, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert res == ReceiveBlockResult.NEW_PEAK
         assert err is None
 
@@ -672,7 +675,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_ANNOUNCE_CONSUMED_FAILED
 
@@ -689,7 +692,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate newly created block
-        res, err, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert res == ReceiveBlockResult.NEW_PEAK
         assert err is None
 
@@ -735,7 +738,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block at index 10
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_HEIGHT_ABSOLUTE_FAILED
 
@@ -745,7 +748,7 @@ class TestBlockchainTransactions:
             farmer_reward_puzzle_hash=coinbase_puzzlehash,
             guarantee_transaction_block=True,
         )
-        res, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, _, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert res == ReceiveBlockResult.NEW_PEAK
 
         # At index 11, it can be spent
@@ -756,7 +759,7 @@ class TestBlockchainTransactions:
             transaction_data=block1_spend_bundle,
             guarantee_transaction_block=True,
         )
-        res, err, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert err is None
         assert res == ReceiveBlockResult.NEW_PEAK
 
@@ -804,7 +807,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block at index 11
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_HEIGHT_RELATIVE_FAILED
 
@@ -814,7 +817,7 @@ class TestBlockchainTransactions:
             farmer_reward_puzzle_hash=coinbase_puzzlehash,
             guarantee_transaction_block=True,
         )
-        res, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, _, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert res == ReceiveBlockResult.NEW_PEAK
 
         # At index 12, it can be spent
@@ -825,7 +828,7 @@ class TestBlockchainTransactions:
             transaction_data=block1_spend_bundle,
             guarantee_transaction_block=True,
         )
-        res, err, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(new_blocks[-1])
         assert err is None
         assert res == ReceiveBlockResult.NEW_PEAK
 
@@ -873,7 +876,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block before 300 sec
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_SECONDS_RELATIVE_FAILED
 
@@ -885,7 +888,7 @@ class TestBlockchainTransactions:
             guarantee_transaction_block=True,
             time_per_block=301,
         )
-        res, err, _ = await full_node_1.blockchain.receive_block(valid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(valid_new_blocks[-1])
         assert err is None
         assert res == ReceiveBlockResult.NEW_PEAK
 
@@ -934,7 +937,7 @@ class TestBlockchainTransactions:
         )
 
         # Try to validate that block before 30 sec
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.ASSERT_SECONDS_ABSOLUTE_FAILED
 
@@ -946,7 +949,7 @@ class TestBlockchainTransactions:
             guarantee_transaction_block=True,
             time_per_block=31,
         )
-        res, err, _ = await full_node_1.blockchain.receive_block(valid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(valid_new_blocks[-1])
         assert err is None
         assert res == ReceiveBlockResult.NEW_PEAK
 
@@ -996,7 +999,7 @@ class TestBlockchainTransactions:
             guarantee_transaction_block=True,
         )
 
-        res, err, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(invalid_new_blocks[-1])
         assert res == ReceiveBlockResult.INVALID_BLOCK
         assert err == Err.RESERVE_FEE_CONDITION_FAILED
 
@@ -1007,6 +1010,6 @@ class TestBlockchainTransactions:
             transaction_data=block1_spend_bundle_good,
             guarantee_transaction_block=True,
         )
-        res, err, _ = await full_node_1.blockchain.receive_block(valid_new_blocks[-1])
+        res, err, _, _ = await full_node_1.blockchain.receive_block(valid_new_blocks[-1])
         assert err is None
         assert res == ReceiveBlockResult.NEW_PEAK

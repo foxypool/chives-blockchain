@@ -9,7 +9,7 @@ trigger:
       - "*"
   tags:
     include:
-    - "*"
+      - "*"
 
 pool:
   vmImage: "macOS-10.15"
@@ -21,12 +21,17 @@ strategy:
 variables:
   - group: Apple-Notarize-Variables
   - group: AWS-Upload-Credentials
+  - group: GlueVariables
 
 steps:
   - checkout: self  # self represents the repo where the initial Azure Pipelines YAML file was found
     submodules: recursive
     fetchDepth: 0
     displayName: "Checkout code"
+
+  - script: |
+      git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+    displayName: "Use https for git instead of ssh"
 
   - task: UsePythonVersion@0
     inputs:
@@ -43,29 +48,33 @@ steps:
       deleteCert: true
 
   - script: |
-      python -m venv venv
-      ln -s venv/bin/activate .
-      . ./activate
-      python -m pip install --upgrade pip
-      pip install wheel pep517 setuptools_scm
-      node -v
-      pip install -i https://pypi.chia.net/simple/ miniupnpc==2.2.2
-      cd build_scripts
+      python3 -m venv ../venv
+      . ../venv/bin/activate
+      pip install setuptools_scm
       touch $(System.DefaultWorkingDirectory)/build_scripts/version.txt
-      python -m installer-version > $(System.DefaultWorkingDirectory)/build_scripts/version.txt
-    displayName: "Install dependencies"
+      python ./build_scripts/installer-version.py > $(System.DefaultWorkingDirectory)/build_scripts/version.txt
+      cat $(System.DefaultWorkingDirectory)/build_scripts/version.txt
+      deactivate
+    displayName: Create installer version number
 
   - script: |
-      . ./activate
-      clang --version
-      pip wheel --use-pep517 --extra-index-url https://pypi.chia.net/simple/ --wheel-dir=wheels .
-      pip install --no-index --find-links=./wheels/ chives-blockchain
-    displayName: "Build and install wheels"
+      MADMAX_VERSION=$(curl --silent "https://api.github.com/repos/Chives-Network/chives-plotter-madmax/releases/latest" | jq -r '.tag_name')
+
+      mkdir "$(System.DefaultWorkingDirectory)/madmax"
+      wget -O "$(System.DefaultWorkingDirectory)/madmax/chives_plot" https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${MADMAX_VERSION}/chives_plot-${MADMAX_VERSION}-macos-intel
+      wget -O "$(System.DefaultWorkingDirectory)/madmax/chives_plot_k34" https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${MADMAX_VERSION}/chives_plot_k34-${MADMAX_VERSION}-macos-intel
+      chmod +x "$(System.DefaultWorkingDirectory)/madmax/chives_plot"
+      chmod +x "$(System.DefaultWorkingDirectory)/madmax/chives_plot_k34"
+    displayName: "Get latest madmax release"
+
+  - script: |
+      sh install.sh
+    displayName: "Install dependencies"
 
   - task: NodeTool@0
     inputs:
-      versionSpec: '12.x'
-    displayName: "Setup Node 12.x"
+      versionSpec: '14.x'
+    displayName: "Setup Node 14.x"
 
   - bash: |
       . ./activate
@@ -73,28 +82,17 @@ steps:
       export APPLE_NOTARIZE_USERNAME
       APPLE_NOTARIZE_PASSWORD="$(APPLE_NOTARIZE_PASSWORD)"
       export APPLE_NOTARIZE_PASSWORD
-      if [ "$(APPLE_NOTARIZE_PASSWORD)" ]; then NOTARIZE="true"; export NOTARIZE; fi
-      git submodule update --init --recursive
+      if [ "$(APPLE_NOTARIZE_PASSWORD)" ]; then NOTARIZE="true"; else NOTARIZE="false"; fi
+      export NOTARIZE
       cd build_scripts || exit
       sh build_macos.sh
     displayName: "Build DMG with build_scripts/build_macos.sh"
 
   - task: PublishPipelineArtifact@1
     inputs:
-      targetPath: $(System.DefaultWorkingDirectory)/wheels
-      artifactName: MacOS-wheels
-    displayName: "Upload MacOS wheels"
-
-  - task: PublishPipelineArtifact@1
-    inputs:
       targetPath: $(System.DefaultWorkingDirectory)/build_scripts/final_installer/
       artifactName: MacOS-DMG
     displayName: "Upload MacOS DMG"
-
-  - bash: |
-      ls $(System.DefaultWorkingDirectory)/build_scripts/
-      cat $(System.DefaultWorkingDirectory)/build_scripts/version.txt
-    displayName: "list files in dir"
 
   - bash: |
       ls $(System.DefaultWorkingDirectory)/build_scripts/final_installer/
@@ -112,18 +110,42 @@ steps:
     displayName: "Upload to S3"
 
   - bash: |
+      cd $(System.DefaultWorkingDirectory)/build_scripts/
+      export CHIVES_VERSION="Chives-"$(<version.txt)
+
       pip3 install py3createtorrent
       py3createtorrent -f -t udp://tracker.opentrackr.org:1337/announce $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg -o $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg.torrent --webseed https://download-chives-net.s3.us-west-2.amazonaws.com/install/$CHIVES_VERSION.dmg
       ls
     displayName: "Create torrent file"
-    condition: contains(variables['build.sourceBranch'], 'refs/tags/')
+    condition: and(succeeded(), contains(variables['build.sourceBranch'], 'refs/tags/'))
 
   - bash: |
       export AWS_ACCESS_KEY_ID=$(AccessKey)
       export AWS_SECRET_ACCESS_KEY=$(SecretKey)
       export AWS_DEFAULT_REGION=us-west-2
+      cd $(System.DefaultWorkingDirectory)/build_scripts/
+      export CHIVES_VERSION="Chives-"$(<version.txt)
+      aws s3 cp $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg s3://download-chives-net/beta/Chives-intel_latest_beta.dmg
+      aws s3 cp $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg.sha256 s3://download-chives-net/beta/Chives-intel_latest_beta.dmg.sha256
+    displayName: "Upload Beta Files"
+    condition: and(succeeded(), contains(variables['build.sourceBranch'], 'refs/heads/main'))
+
+  - bash: |
+      export AWS_ACCESS_KEY_ID=$(AccessKey)
+      export AWS_SECRET_ACCESS_KEY=$(SecretKey)
+      export AWS_DEFAULT_REGION=us-west-2
+      cd $(System.DefaultWorkingDirectory)/build_scripts/
+      export CHIVES_VERSION="Chives-"$(<version.txt)
       aws s3 cp $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg s3://download-chives-net/install/
       aws s3 cp $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg.sha256 s3://download-chives-net/install/
       aws s3 cp $(System.DefaultWorkingDirectory)/build_scripts/final_installer/$CHIVES_VERSION.dmg.torrent s3://download-chives-net/torrents/
     displayName: "Upload Release Files"
-    condition: contains(variables['build.sourceBranch'], 'refs/tags/')
+    condition: and(succeeded(), contains(variables['build.sourceBranch'], 'refs/tags/'))
+
+  - bash: |
+      cd $(System.DefaultWorkingDirectory)/build_scripts/
+      export CHIVES_TAG=$(<version.txt)
+      export REPO_NAME=$(echo $(Build.Repository.Name) | cut -d'/' -f 2)
+      curl -s -XPOST -H "Authorization: Bearer $(GLUE_ACCESS_TOKEN)" --data "{\"chives_ref\": \"$CHIVES_TAG\"}" $(GLUE_API_URL)/api/v1/${REPO_NAME}/${CHIVES_TAG}/success/build-macos
+    displayName: "Mark installer complete"
+    condition: and(succeeded(), contains(variables['build.sourceBranch'], 'refs/tags/'))

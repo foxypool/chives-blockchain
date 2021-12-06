@@ -6,6 +6,7 @@ import signal
 from sys import platform
 from typing import Any, Callable, List, Optional, Tuple
 
+from chives.daemon.server import singleton, service_launch_lock_path
 from chives.server.ssl_context import chives_ssl_ca_paths, private_ssl_ca_paths
 
 try:
@@ -142,7 +143,8 @@ class Service:
         await self._server.start_server(self._on_connect_callback)
 
         self._reconnect_tasks = [
-            start_reconnect_task(self._server, _, self._log, self._auth_connect_peers) for _ in self._connect_peers
+            start_reconnect_task(self._server, _, self._log, self._auth_connect_peers, self.config.get("prefer_ipv6"))
+            for _ in self._connect_peers
         ]
         self._log.info(f"Started {self._service_name} service on network_id: {self._network_id}")
 
@@ -163,6 +165,10 @@ class Service:
             )
 
     async def run(self) -> None:
+        lockfile = singleton(service_launch_lock_path(self.root_path, self._service_name))
+        if lockfile is None:
+            self._log.error(f"{self._service_name}: already running")
+            raise ValueError(f"{self._service_name}: already running")
         await self.start()
         await self.wait_closed()
 

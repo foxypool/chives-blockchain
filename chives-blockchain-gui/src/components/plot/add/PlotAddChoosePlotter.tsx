@@ -80,7 +80,7 @@ export default function PlotAddChoosePlotter(props: Props) {
 
     return displayName;
   };
-
+/* Remove BladeBit as it only supports K32
   const plotterWarningString = (plotterName: PlotterName | undefined): string | undefined => {
     if (plotterName === PlotterName.BLADEBIT) {
       return availablePlotters[PlotterName.BLADEBIT]?.installInfo?.bladebitMemoryWarning;
@@ -89,14 +89,15 @@ export default function PlotAddChoosePlotter(props: Props) {
   };
 
   const warning = plotterWarningString(plotterName);
-
+*/
+  const warning = undefined;
   return (
     <CardStep step={step} title={<Trans>Choose Plotter</Trans>}>
       <Typography variant="subtitle1">
         <Trans>
             Depending on your system configuration, you may find that an alternative plotter
-            produces plots faster than the default Chives Proof of Space plotter. If unsure,
-            use the default Chives Proof of Space plotter.
+            produces plots faster than the default Chia Proof of Space plotter. If unsure,
+            use the default Chia Proof of Space plotter.
         </Trans>
       </Typography>
 

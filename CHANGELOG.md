@@ -1585,7 +1585,7 @@ relic. We will make a patch available for these systems shortly.
 
 ### Fixed
 
-- There was a regression in Chives Proof of Space ([chiapos](https://github.com/HiveProject2021/chiapos)) that came from our efforts to speed up plotting on Windows native. Now k>=32 plots work correctly. We made additional bug fixes and corrected limiting small k size generation.
+- There was a regression in Chia proof of Space ([chiapos](https://github.com/HiveProject2021/chiapos)) that came from our efforts to speed up plotting on Windows native. Now k>=32 plots work correctly. We made additional bug fixes and corrected limiting small k size generation.
 - There was a bug in Timelord handling that could stop all VDF progress.
 
 ### Deprecated

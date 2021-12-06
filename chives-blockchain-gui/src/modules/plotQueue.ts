@@ -55,8 +55,8 @@ export function plotQueueAdd(
 ): ThunkAction<any, RootState, unknown, Action<Object>> {
   return (dispatch) => {
     const {
-      bladebitDisableNUMA,
-      bladebitWarmStart,
+/*      bladebitDisableNUMA,
+      bladebitWarmStart,*/
       c,
       delay,
       disableBitfieldPlotting,
@@ -102,8 +102,8 @@ export function plotQueueAdd(
         farmerPublicKey,
         poolPublicKey,
         c,
-        bladebitDisableNUMA,
-        bladebitWarmStart,
+/*        bladebitDisableNUMA,
+        bladebitWarmStart,*/
         madmaxNumBucketsPhase3,
         madmaxTempToggle,
         madmaxThreadMultiplier,

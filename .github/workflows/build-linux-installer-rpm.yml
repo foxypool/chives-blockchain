@@ -16,7 +16,7 @@ jobs:
     name: Linux .rpm installer on Python 3.9
     runs-on: ubuntu-latest
     container:
-      image: chivesnetwork/centos7-builder:latest
+      image: chianetwork/centos7-builder:latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -37,7 +37,7 @@ jobs:
         fetch-depth: 0
         submodules: recursive
 
-    - uses: Chives-Network/actions/git-ssh-to-https@main
+    - uses: Chia-Network/actions/git-ssh-to-https@main
 
     - name: Cleanup any leftovers that exist from previous runs
       run: bash build_scripts/clean-runner.sh || true
@@ -62,7 +62,7 @@ jobs:
       env:
         SECRET: "${{ secrets.INSTALLER_UPLOAD_SECRET }}"
 
-      # Get the most recent release from chives-plotter-madmax
+      # Get the most recent release from chia-plotter-madmax
     - uses: actions/github-script@v4
       id: 'latest-madmax'
       with:
@@ -70,38 +70,39 @@ jobs:
         result-encoding: string
         script: |
           const releases = await github.repos.listReleases({
-            owner: 'Chives-Network',
-            repo: 'chives-plotter-madmax',
+            owner: 'Chia-Network',
+            repo: 'chia-plotter-madmax',
           });
           return releases.data[0].tag_name;
 
     - name: Get latest madmax plotter
       run: |
         mkdir "$GITHUB_WORKSPACE/madmax"
-        wget -O "$GITHUB_WORKSPACE/madmax/chives_plot" https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot-${{ steps.latest-madmax.outputs.result }}-x86-64
-        wget -O "$GITHUB_WORKSPACE/madmax/chives_plot_k34" https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot_k34-${{ steps.latest-madmax.outputs.result }}-x86-64
-        chmod +x "$GITHUB_WORKSPACE/madmax/chives_plot"
-        chmod +x "$GITHUB_WORKSPACE/madmax/chives_plot_k34"
+        wget -O "$GITHUB_WORKSPACE/madmax/chia_plot" https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot-${{ steps.latest-madmax.outputs.result }}-x86-64
+        chmod +x "$GITHUB_WORKSPACE/madmax/chia_plot"
 
-      # Get the most recent release from bladebit
-    - uses: actions/github-script@v4
-      id: 'latest-bladebit'
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        result-encoding: string
-        script: |
-          const releases = await github.repos.listReleases({
-            owner: 'Chives-Network',
-            repo: 'bladebit',
-          });
-          return releases.data[0].tag_name;
+    #    wget -O "$GITHUB_WORKSPACE/madmax/chia_plot_k34" https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot_k34-${{ steps.latest-madmax.outputs.result }}-x86-64
+    #    chmod +x "$GITHUB_WORKSPACE/madmax/chia_plot_k34"
 
-    - name: Get latest bladebit plotter
-      run: |
-        mkdir "$GITHUB_WORKSPACE/bladebit"
-        wget -O /tmp/bladebit.tar.gz https://github.com/HiveProject2021/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-centos-x86-64.tar.gz
-        tar -xvzf /tmp/bladebit.tar.gz -C $GITHUB_WORKSPACE/bladebit
-        chmod +x "$GITHUB_WORKSPACE/bladebit/bladebit"
+    # Get the most recent release from bladebit
+    # - uses: actions/github-script@v4
+    #   id: 'latest-bladebit'
+    #   with:
+    #     github-token: ${{ secrets.GITHUB_TOKEN }}
+    #     result-encoding: string
+    #     script: |
+    #       const releases = await github.repos.listReleases({
+    #         owner: 'Chia-Network',
+    #         repo: 'bladebit',
+    #       });
+    #       return releases.data[0].tag_name;
+
+    # - name: Get latest bladebit plotter
+    #   run: |
+    #     mkdir "$GITHUB_WORKSPACE/bladebit"
+    #     wget -O /tmp/bladebit.tar.gz https://github.com/Chia-Network/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-centos-x86-64.tar.gz
+    #     tar -xvzf /tmp/bladebit.tar.gz -C $GITHUB_WORKSPACE/bladebit
+    #     chmod +x "$GITHUB_WORKSPACE/bladebit/bladebit"
 
     - name: Run install script
       env:
@@ -139,7 +140,7 @@ jobs:
           CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
       run: |
           ls $GITHUB_WORKSPACE/build_scripts/final_installer/
-          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm s3://download-chives-net/builds/
+          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm s3://download-chia-net/builds/
 
     - name: Create Checksums
       if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
@@ -160,7 +161,7 @@ jobs:
       env:
         CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
       run: |
-          py3createtorrent -f -t udp://tracker.opentrackr.org:1337/announce $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm -o $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.torrent --webseed https://download-chives-net.s3.us-west-2.amazonaws.com/install/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm
+          py3createtorrent -f -t udp://tracker.opentrackr.org:1337/announce $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm -o $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.torrent --webseed https://download-chia-net.s3.us-west-2.amazonaws.com/install/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm
           ls
 
     - name: Upload Beta Installer
@@ -168,17 +169,17 @@ jobs:
       env:
         CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
       run: |
-        aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm s3://download-chives-net/beta/chives-blockchain-1.x86_64_latest_beta.rpm
-        aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.sha256 s3://download-chives-net/beta/chives-blockchain-1.x86_64_latest_beta.rpm.sha256
+        aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm s3://download-chia-net/beta/chives-blockchain-1.x86_64_latest_beta.rpm
+        aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.sha256 s3://download-chia-net/beta/chives-blockchain-1.x86_64_latest_beta.rpm.sha256
 
     - name: Upload Release Files
       if: steps.check_secrets.outputs.HAS_SECRET && startsWith(github.ref, 'refs/tags/')
       env:
         CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
       run: |
-          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm s3://download-chives-net/install/
-          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.sha256 s3://download-chives-net/install/
-          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.torrent s3://download-chives-net/torrents/
+          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm s3://download-chia-net/install/
+          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.sha256 s3://download-chia-net/install/
+          aws s3 cp $GITHUB_WORKSPACE/build_scripts/final_installer/chives-blockchain-${CHIVES_INSTALLER_VERSION}-1.x86_64.rpm.torrent s3://download-chia-net/torrents/
 
     - name: Get tag name
       if: startsWith(github.ref, 'refs/tags/')

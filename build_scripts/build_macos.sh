@@ -3,7 +3,6 @@
 set -euo pipefail
 
 pip install setuptools_scm
-pip install requests
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined.
 # If the env variable NOTARIZE and the username and password variables are
 # set, this will attempt to Notarize the signed DMG.
@@ -16,13 +15,13 @@ fi
 echo "Chives Installer Version is: $CHIVES_INSTALLER_VERSION"
 
 echo "Installing npm and electron packagers"
-sudo npm install electron-installer-dmg -g
+npm install electron-installer-dmg -g
 # Pinning electron-packager and electron-osx-sign to known working versions
 # Current packager uses an old version of osx-sign, so if we install the newer sign package
 # things break
-sudo npm install electron-packager@15.4.0 -g
-sudo npm install electron-osx-sign@v0.5.0 -g
-sudo npm install notarize-cli -g
+npm install electron-packager@15.4.0 -g
+npm install electron-osx-sign@v0.5.0 -g
+npm install notarize-cli -g
 
 echo "Create dist/"
 sudo rm -rf dist
@@ -38,12 +37,12 @@ if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 	exit $LAST_EXIT_CODE
 fi
 cp -r dist/daemon ../chives-blockchain-gui
-cd ..
-cd chives-blockchain-gui
+cd .. || exit
+cd chives-blockchain-gui || exit
 
 echo "npm build"
 npm install
-npm audit fix --force
+npm audit fix
 npm run build
 LAST_EXIT_CODE=$?
 if [ "$LAST_EXIT_CODE" -ne 0 ]; then
@@ -52,9 +51,9 @@ if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 fi
 
 # sets the version for chives-blockchain in package.json
-#brew install jq
-#cp package.json package.json.orig
-#jq --arg VER "$CHIVES_INSTALLER_VERSION" '.version=$VER' package.json > temp.json && mv temp.json package.json
+brew install jq
+cp package.json package.json.orig
+jq --arg VER "$CHIVES_INSTALLER_VERSION" '.version=$VER' package.json > temp.json && mv temp.json package.json
 
 electron-packager . Chives --asar.unpack="**/daemon/**" --platform=darwin \
 --icon=src/assets/img/Chives.icns --overwrite --app-bundle-id=net.chives.blockchain \
@@ -62,7 +61,7 @@ electron-packager . Chives --asar.unpack="**/daemon/**" --platform=darwin \
 LAST_EXIT_CODE=$?
 
 # reset the package.json to the original
-# mv package.json.orig package.json
+mv package.json.orig package.json
 
 if [ "$LAST_EXIT_CODE" -ne 0 ]; then
 	echo >&2 "electron-packager failed!"
@@ -109,7 +108,7 @@ fi
 #
 # Ask for username and password. password should be an app specific password.
 # Generate app specific password https://support.apple.com/en-us/HT204397
-# xcrun altool --notarize-app -f Chives-0.1.X.dmg --primary-bundle-id net.chives.blockchain -u username -p password
+# xcrun altool --notarize-app -f Chia-0.1.X.dmg --primary-bundle-id net.chia.blockchain -u username -p password
 # xcrun altool --notarize-app; -should return REQUEST-ID, use it in next command
 #
 # Wait until following command return a success message".
@@ -117,7 +116,7 @@ fi
 # It can take a while, run it every few minutes.
 #
 # Once that is successful, execute the following command":
-# xcrun stapler staple Chives-0.1.X.dmg
+# xcrun stapler staple Chia-0.1.X.dmg
 #
 # Validate DMG:
-# xcrun stapler validate Chives-0.1.X.dmg
+# xcrun stapler validate Chia-0.1.X.dmg

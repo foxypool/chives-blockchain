@@ -13,7 +13,6 @@ else
 fi
 
 pip install setuptools_scm
-pip install requests
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined
 # If the env variable NOTARIZE and the username and password variables are
 # set, this will attempt to Notarize the signed DMG
@@ -26,8 +25,8 @@ fi
 echo "Chives Installer Version is: $CHIVES_INSTALLER_VERSION"
 
 echo "Installing npm and electron packagers"
-sudo npm install electron-packager -g
-sudo npm install electron-installer-redhat -g
+npm install electron-packager -g
+npm install electron-installer-redhat -g
 
 echo "Create dist/"
 rm -rf dist
@@ -83,7 +82,7 @@ if [ "$REDHAT_PLATFORM" = "x86_64" ]; then
 	# shellcheck disable=SC2046
 	NODE_ROOT="$(dirname $(dirname $(which node)))"
 
-	# Disables build links from the generated rpm so that we dont conflict with other packages. See https://github.com/HiveProject2021/chives-blockchain/issues/3846
+	# Disables build links from the generated rpm so that we dont conflict with other packages. See https://github.com/Chia-Network/chives-blockchain/issues/3846
 	# shellcheck disable=SC2086
 	sed -i '1s/^/%define _build_id_links none\n%global _enable_debug_package 0\n%global debug_package %{nil}\n%global __os_install_post \/usr\/lib\/rpm\/brp-compress %{nil}\n/' "$NODE_ROOT/lib/node_modules/electron-installer-redhat/resources/spec.ejs"
 

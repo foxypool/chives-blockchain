@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - '**'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -100,7 +101,7 @@ jobs:
         echo "::set-output name=CHIVES_INSTALLER_VERSION::$env:CHIVES_INSTALLER_VERSION"
         deactivate
 
-      # Get the most recent release from chives-plotter-madmax
+      # Get the most recent release from chia-plotter-madmax
     - uses: actions/github-script@v4
       id: 'latest-madmax'
       with:
@@ -108,36 +109,36 @@ jobs:
         result-encoding: string
         script: |
           const releases = await github.repos.listReleases({
-            owner: 'Chives-Network',
-            repo: 'chives-plotter-madmax',
+            owner: 'Chia-Network',
+            repo: 'chia-plotter-madmax',
           });
           return releases.data[0].tag_name;
 
     - name: Get latest madmax plotter
       run: |
         mkdir "$env:GITHUB_WORKSPACE\madmax"
-        Invoke-WebRequest https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chives_plot.exe"
-        Invoke-WebRequest https://github.com/HiveProject2021/chives-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chives_plot_k34-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chives_plot_k34.exe"
+        Invoke-WebRequest https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chia_plot.exe"
+    #    Invoke-WebRequest https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot_k34-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chia_plot_k34.exe"
 
-      # Get the most recent release from bladebit
-    - uses: actions/github-script@v4
-      id: 'latest-bladebit'
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        result-encoding: string
-        script: |
-          const releases = await github.repos.listReleases({
-            owner: 'Chives-Network',
-            repo: 'bladebit',
-          });
-          return releases.data[0].tag_name;
+    #   Get the most recent release from bladebit
+    #- uses: actions/github-script@v4
+    #  id: 'latest-bladebit'
+    #  with:
+    #    github-token: ${{ secrets.GITHUB_TOKEN }}
+    #    result-encoding: string
+    #    script: |
+    #      const releases = await github.repos.listReleases({
+    #        owner: 'Chia-Network',
+    #        repo: 'bladebit',
+    #      });
+    #      return releases.data[0].tag_name;
 
-    - name: Get latest bladebit plotter
-      run: |
-        mkdir "$env:GITHUB_WORKSPACE\bladebit"
-        Invoke-WebRequest https://github.com/HiveProject2021/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-windows-x86-64.zip -OutFile "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
-        Expand-Archive -Path "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip" -DestinationPath "$env:GITHUB_WORKSPACE\bladebit\"
-        rm "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
+    #- name: Get latest bladebit plotter
+    #  run: |
+    #    mkdir "$env:GITHUB_WORKSPACE\bladebit"
+    #    Invoke-WebRequest https://github.com/Chia-Network/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-windows-x86-64.zip -OutFile "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
+    #    Expand-Archive -Path "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip" -DestinationPath "$env:GITHUB_WORKSPACE\bladebit\"
+    #    rm "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
 
     - name: Build Windows installer with build_scripts\build_windows.ps1
       env:
@@ -176,14 +177,14 @@ jobs:
     - name: Upload to s3
       if: steps.check_secrets.outputs.HAS_AWS_SECRET
       env:
-        CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
+        CHIA_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
       run: |
         ls ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\
         aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe s3://download-chives-net/builds/
 
     - name: Create Checksums
       env:
-        CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
+        CHIA_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}
       run: |
          certutil.exe -hashfile ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe SHA256 > ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe.sha256
          ls ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\
@@ -202,10 +203,10 @@ jobs:
     - name: Upload Beta Installer
       if: steps.check_secrets.outputs.HAS_AWS_SECRET && github.ref == 'refs/heads/main'
       env:
-        CHIVES_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}
+        CHIA_INSTALLER_VERSION: ${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}
       run: |
-        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe s3://download-chives-net/beta/ChivesSetup-latest-beta.exe
-        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe.sha256 s3://download-chives-net/beta/ChivesSetup-latest-beta.exe.sha256
+        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}.exe s3://download-chives-net/beta/ChivesSetup-latest-beta.exe
+        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}.exe.sha256 s3://download-chives-net/beta/ChivesSetup-latest-beta.exe.sha256
 
     - name: Upload Release Files
       if: steps.check_secrets.outputs.HAS_AWS_SECRET && startsWith(github.ref, 'refs/tags/')
@@ -213,9 +214,9 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.INSTALLER_UPLOAD_KEY }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.INSTALLER_UPLOAD_SECRET }}
       run: |
-        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe s3://download-chives-net/install/
-        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe.sha256 s3://download-chives-net/install/
-        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIVES_INSTALLER_VERSION }}.exe.torrent s3://download-chives-net/torrents/
+        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}.exe s3://download-chives-net/install/
+        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}.exe.sha256 s3://download-chives-net/install/
+        aws s3 cp ${{ github.workspace }}\chives-blockchain-gui\release-builds\windows-installer\ChivesSetup-${{ steps.version_number.outputs.CHIA_INSTALLER_VERSION }}.exe.torrent s3://download-chives-net/torrents/
 
     - name: Get tag name
       if: startsWith(github.ref, 'refs/tags/')
@@ -231,7 +232,7 @@ jobs:
             Authorization="Bearer ${{ secrets.GLUE_ACCESS_TOKEN }}"
         }
         $data = @{
-            chives_ref='${{ steps.tag-name.outputs.TAG_NAME }}'
+            chia_ref='${{ steps.tag-name.outputs.TAG_NAME }}'
         }
         $json = $data | ConvertTo-Json
         $response = Invoke-RestMethod '${{ secrets.GLUE_API_URL }}/api/v1/${{ steps.tag-name.outputs.REPO_NAME }}/${{ steps.tag-name.outputs.TAG_NAME }}/success/build-windows' -Method Post -Body $json -ContentType 'application/json' -Headers $headers

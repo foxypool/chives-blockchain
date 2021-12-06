@@ -44,8 +44,8 @@ export const startPlotting = (
   f, // farmerPublicKey
   p, // poolPublicKey
   c, // poolContractAddress
-  m, // bladebitDisableNUMA,
-  w, // bladebitWarmStart,
+//  m, // bladebitDisableNUMA,
+//  w, // bladebitWarmStart,
   v, // madmaxNumBucketsPhase3,
   G, // madmaxTempToggle,
   K, // madmaxThreadMultiplier,
@@ -88,14 +88,14 @@ export const startPlotting = (
     data.c = c;
   }
 
-  if (m) { // bladebitDisableNUMA
+/*  if (m) { // bladebitDisableNUMA
     data.m = m;
   }
 
   if (w) { // bladebitWarmStart
     data.w = w;
   }
-
+*/
   if (v) { // madmaxNumBucketsPhase3
     data.v = v;
   }

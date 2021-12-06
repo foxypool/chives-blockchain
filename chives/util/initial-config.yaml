@@ -9,6 +9,13 @@ daemon_max_message_size: 50000000 # maximum size of RPC message in bytes
 inbound_rate_limit_percent: 100
 outbound_rate_limit_percent: 30
 
+# Limit the number of start_full_node worker processes to reduce ram and cpu usage
+# This allows users to farm more forks without running out of ram
+# Setting this too low reduces sync speed, but a synced node can stay synced with a multiprocessing_limit of 2
+# A value higher than 61 takes no effect, as chia limits the workers to 61 (windows server related python bug)
+
+multiprocessing_limit: 4
+
 network_overrides: &network_overrides
   constants:
     mainnet:
@@ -115,7 +122,7 @@ daemon_ssl:
 logging: &logging
   log_stdout: False  # If True, outputs to stdout instead of a file
   log_filename: "log/debug.log"
-  log_level: "WARNING"  # Can be CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
+  log_level: "INFO"  # Can be CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
   log_maxfilesrotation: 7 #  Max files in rotation. Default value 7 if the key is not set
   log_syslog: False  # If True, outputs to SysLog host and port specified
   log_syslog_host: "localhost"  # Send logging messages to a remote or local Unix syslog
@@ -261,7 +268,7 @@ timelord:
 full_node:
   # The full node server (if run) will run on this port
   port: 9699
-  
+
   # controls the sync-to-disk behavior of the database connection. Can be one of:
   # "on"    enables syncing to disk, minimizes risk of corrupting the DB in
   #         power-loss, disk failure or kernel panics

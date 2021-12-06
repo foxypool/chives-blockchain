@@ -134,7 +134,7 @@ export default function PlotAddNumberOfPlots(props: Props) {
                 variant="filled"
                 placeholder="2"
                 label={<Trans>Number of threads</Trans>}
-                helperText={plotter.defaults.plotterName === "bladebit" && (
+                helperText={/*plotter.defaults.plotterName === "bladebit" && */(
                   <Trans>Specify a value of 0 to use all available threads</Trans>
                 )}
                 InputProps={{
@@ -242,34 +242,6 @@ export default function PlotAddNumberOfPlots(props: Props) {
               </FormControl>
             </Grid>
           )}
-          {plotter.options.haveBladebitWarmStart && (
-            <Grid xs={12} item>
-              <FormControl variant="filled" fullWidth>
-                <FormControlLabel
-                  control={<Checkbox name="bladebitWarmStart" />}
-                  label={
-                    <>
-                      <Trans>Warm start</Trans>{' '}
-                    </>
-                  }
-                />
-              </FormControl>
-            </Grid>
-          )}
-          {plotter.options.haveBladebitDisableNUMA && (
-            <Grid xs={12} item>
-              <FormControl variant="filled" fullWidth>
-                <FormControlLabel
-                  control={<Checkbox name="bladebitDisableNUMA" />}
-                  label={
-                    <>
-                      <Trans>Disable NUMA</Trans>{' '}
-                    </>
-                  }
-                />
-              </FormControl>
-            </Grid>
-          )}
           <Grid xs={12} item>
             <FormControl variant="filled" fullWidth>
               <FormControlLabel
@@ -314,3 +286,31 @@ export default function PlotAddNumberOfPlots(props: Props) {
     </CardStep>
   );
 }
+/*{plotter.options.haveBladebitWarmStart && (
+  <Grid xs={12} item>
+    <FormControl variant="filled" fullWidth>
+      <FormControlLabel
+        control={<Checkbox name="bladebitWarmStart" />}
+        label={
+          <>
+            <Trans>Warm start</Trans>{' '}
+          </>
+        }
+      />
+    </FormControl>
+  </Grid>
+)}
+{plotter.options.haveBladebitDisableNUMA && (
+  <Grid xs={12} item>
+    <FormControl variant="filled" fullWidth>
+      <FormControlLabel
+        control={<Checkbox name="bladebitDisableNUMA" />}
+        label={
+          <>
+            <Trans>Disable NUMA</Trans>{' '}
+          </>
+        }
+      />
+    </FormControl>
+  </Grid>
+)}*/

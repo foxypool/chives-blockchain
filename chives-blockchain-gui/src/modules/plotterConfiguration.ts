@@ -4,7 +4,7 @@ import Plotter, { PlotterMap } from '../types/Plotter';
 
 export const defaultPlotter = (): Plotter => {
   return {
-    displayName: "Chives Proof of Space",
+    displayName: "Chia Proof of Space",
     options: optionsForPlotter(PlotterName.chiapos),
     defaults: defaultsForPlotter(PlotterName.chiapos),
     installInfo: { installed: true },
@@ -48,7 +48,7 @@ export default function plotterConfigurationReducer(
               installInfo: {
                 installed: installInfo.installed,
                 canInstall: installInfo.can_install,
-                bladebitMemoryWarning: installInfo.bladebit_memory_warning,
+/*                bladebitMemoryWarning: installInfo.bladebit_memory_warning,*/
               },
             };
           });

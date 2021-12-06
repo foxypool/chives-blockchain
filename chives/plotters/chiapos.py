@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 def get_chiapos_install_info() -> Optional[Dict[str, Any]]:
     chiapos_version: str = pkg_resources.get_distribution("chiapos").version
-    return {"display_name": "Chives Proof of Space", "version": chiapos_version, "installed": True}
+    return {"display_name": "Chia Proof of Space", "version": chiapos_version, "installed": True}
 
 
 class Params:

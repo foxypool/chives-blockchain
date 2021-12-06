@@ -1,7 +1,7 @@
 import PlotterName from './PlotterName';
 import { PlotterOptions, PlotterDefaults } from 'types/Plotter';
 
-export const bladebitOptions: PlotterOptions = {
+/*export const bladebitOptions: PlotterOptions = {
   kSizes: [32],
   haveNumBuckets: false,
   haveMadmaxNumBucketsPhase3: false,
@@ -31,16 +31,16 @@ export const bladebitDefaults: PlotterDefaults = {
   parallel: false,
   delay: 0,
 };
-
+*/
 export const chiaposOptions: PlotterOptions = {
   kSizes: [25, 29, 30, 31],
   haveNumBuckets: true,
   haveMadmaxNumBucketsPhase3: false,
   haveMadmaxThreadMultiplier: false,
   haveMadmaxTempToggle: false,
-  haveBladebitWarmStart: false,
+/*  haveBladebitWarmStart: false,
   haveBladebitDisableNUMA: false,
-  haveBladebitOutputDir: false,
+  haveBladebitOutputDir: false,*/
   canDisableBitfieldPlotting: true,
   canPlotInParallel: true,
   canDelayParallelPlots: true,
@@ -56,8 +56,8 @@ export const chiaposDefaults: PlotterDefaults = {
   madmaxThreadMultiplier: undefined,
   madmaxWaitForCopy: undefined,
   madmaxTempToggle: undefined,
-  bladebitWarmStart: undefined,
-  bladebitDisableNUMA: undefined,
+/*  bladebitWarmStart: undefined,
+  bladebitDisableNUMA: undefined,*/
   disableBitfieldPlotting: false,
   parallel: false,
   delay: 0,
@@ -69,9 +69,9 @@ export const madmaxOptions: PlotterOptions = {
   haveMadmaxNumBucketsPhase3: true,
   haveMadmaxThreadMultiplier: true,
   haveMadmaxTempToggle: true,
-  haveBladebitWarmStart: false,
+/*  haveBladebitWarmStart: false,
   haveBladebitDisableNUMA: false,
-  haveBladebitOutputDir: false,
+  haveBladebitOutputDir: false,*/
   canDisableBitfieldPlotting: false,
   canPlotInParallel: false,
   canDelayParallelPlots: false,
@@ -87,8 +87,8 @@ export const madmaxDefaults: PlotterDefaults = {
   madmaxThreadMultiplier: 1,
   madmaxWaitForCopy: true,
   madmaxTempToggle: false,
-  bladebitWarmStart: undefined,
-  bladebitDisableNUMA: undefined,
+/*  bladebitWarmStart: undefined,
+  bladebitDisableNUMA: undefined,*/
   disableBitfieldPlotting: undefined,
   parallel: false,
   delay: 0,
@@ -96,8 +96,8 @@ export const madmaxDefaults: PlotterDefaults = {
 
 export const optionsForPlotter = (plotterName: PlotterName): PlotterOptions => {
   switch (plotterName) {
-    case PlotterName.BLADEBIT:
-      return bladebitOptions;
+/*    case PlotterName.BLADEBIT:
+      return bladebitOptions;*/
     case PlotterName.MADMAX:
       return madmaxOptions;
     case PlotterName.chiapos: // fallthrough
@@ -108,8 +108,8 @@ export const optionsForPlotter = (plotterName: PlotterName): PlotterOptions => {
 
 export const defaultsForPlotter = (plotterName: PlotterName): PlotterDefaults => {
   switch (plotterName) {
-    case PlotterName.BLADEBIT:
-      return bladebitDefaults;
+/*    case PlotterName.BLADEBIT:
+      return bladebitDefaults;*/
     case PlotterName.MADMAX:
       return madmaxDefaults;
     case PlotterName.chiapos: // fallthrough

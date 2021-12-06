@@ -724,8 +724,8 @@ msgstr "Удаление ключа"
 #~ msgstr "Удаление ключа приведет к безвозвратному удалению ключа с вашего компьютера, убедитесь, что у вас есть резервные копии. Вы уверены что хотите продолжить?"
 
 #: src/components/plot/add/PlotAddChoosePlotter.tsx:96
-msgid "Depending on your system configuration, you may find that an alternative plotter produces plots faster than the default Chives Proof of Space plotter. If unsure, use the default Chives Proof of Space plotter."
-msgstr "В зависимости от конфигурации вашей системы, вы можете обнаружить, что альтернативный плоттер создает участки быстрее, чем плоттер по умолчанию Chives Proof of Space. Если вы не уверены, используйте плоттер Chives Proof of Space по умолчанию."
+msgid "Depending on your system configuration, you may find that an alternative plotter produces plots faster than the default Chia Proof of Space plotter. If unsure, use the default Chia Proof of Space plotter."
+msgstr "В зависимости от конфигурации вашей системы, вы можете обнаружить, что альтернативный плоттер создает участки быстрее, чем плоттер по умолчанию Chia Proof of Space. Если вы не уверены, используйте плоттер Chia Proof of Space по умолчанию."
 
 #: src/electron/main.tsx:313
 msgid "Developer"

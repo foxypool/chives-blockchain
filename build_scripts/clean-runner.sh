@@ -13,6 +13,8 @@ rm -rf chives-blockchain-gui/build || true
 rm -rf chives-blockchain-gui/daemon || true
 rm -rf chives-blockchain-gui/node_modules || true
 rm chives-blockchain-gui/temp.json || true
+( cd "$PWD/chives-blockchain-gui" && git checkout HEAD -- package-lock.json ) || true
+cd "$PWD" || true
 
 # Do our best to get rid of any globally installed notarize-cli versions so the version in the current build script is
 # installed without conflicting with the other version that might be installed

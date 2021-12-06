@@ -91,7 +91,7 @@ export default function PlotAdd() {
 
   let plotter = availablePlotters[plotterName] ?? defaultPlotter();
   let step: number = 1;
-  const allowTempDirectorySelection: boolean = plotter.options.haveBladebitOutputDir === false;
+  const allowTempDirectorySelection: boolean = true/*plotter.options.haveBladebitOutputDir === false*/;
 
   useEffect(() => {
     const plotSizeConfig = plotSizes.find((item) => item.value === plotSize);

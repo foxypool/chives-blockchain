@@ -29,9 +29,9 @@ def get_madmax_package_path() -> Path:
 
 def get_madmax_executable_path_for_ksize(plotters_root_path: Path, ksize: int = 29) -> Path:
     madmax_dir: Path = get_madmax_package_path()
-    madmax_exec: str = "chives_plot"
-    if ksize > 29:
-        madmax_exec += "_k29"  # Use the chives_plot_k34 executable for k-sizes > 29
+    madmax_exec: str = "chia_plot"
+#    if ksize > 32:
+#        madmax_exec += "_k34"  # Use the chia_plot_k34 executable for k-sizes > 32
     if sys.platform in ["win32", "cygwin"]:
         madmax_exec += ".exe"
     if not madmax_dir.exists():
@@ -109,7 +109,7 @@ def install_madmax(plotters_root_path: Path):
             [
                 "git",
                 "clone",
-                "https://github.com/HiveProject2021/chives-plotter-madmax.git",
+                "https://github.com/Chia-Network/chia-plotter-madmax.git",
                 MADMAX_PLOTTER_DIR,
             ],
             "Could not clone madmax git repository",
@@ -221,9 +221,10 @@ def plot_madmax(args, chives_root_path: Path, plotters_root_path: Path):
         call_args.append("-G")
     call_args.append("-K")
     call_args.append(str(args.rmulti2))
-    if args.size != 32:
-        call_args.append("-k")
-        call_args.append(str(args.size))
+    call_args.append("-k")
+    call_args.append(str(args.size))
+    call_args.append("-x")
+    call_args.append("9699")
     try:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(run_plotter(call_args, progress))

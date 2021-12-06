@@ -65,6 +65,8 @@ if(Test-Path '.\chives-blockchain-gui\build')			{
 
 Set-Location -Path ".\build_scripts\win_build" -PassThru
 
+git status
+
 Write-Output "   ---"
 Write-Output "curl miniupnpc"
 Write-Output "   ---"
@@ -76,7 +78,7 @@ If ($LastExitCode -gt 0){
 }
 else
 {
-    Set-Location -Path "../../" -PassThru
+    Set-Location -Path - -PassThru
     Write-Output "miniupnpc download successful."
 }
 
@@ -90,14 +92,13 @@ pip install wheel pep517
 pip install pywin32
 pip install pyinstaller==4.5
 pip install setuptools_scm
-pip install requests
 
 Write-Output "   ---"
 Write-Output "Get CHIVES_INSTALLER_VERSION"
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined
 $env:CHIVES_INSTALLER_VERSION = python .\build_scripts\installer-version.py -win
 
-# $env:CHIVES_INSTALLER_VERSION = "1.1.907"
+# $env:CHIVES_INSTALLER_VERSION = "1.2.11"
 
 if (-not (Test-Path env:CHIVES_INSTALLER_VERSION)) {
   $env:CHIVES_INSTALLER_VERSION = '0.0.0'
@@ -113,12 +114,12 @@ if (Test-Path -Path .\madmax\) {
     mv .\madmax\ .\venv\lib\site-packages\
 }
 
-Write-Output "Checking if bladebit exists"
-Write-Output "   ---"
-if (Test-Path -Path .\bladebit\) {
-    Write-Output "   bladebit exists, moving to expected directory"
-    mv .\bladebit\ .\venv\lib\site-packages\
-}
+#Write-Output "Checking if bladebit exists"
+#Write-Output "   ---"
+#if (Test-Path -Path .\bladebit\) {
+#    Write-Output "   bladebit exists, moving to expected directory"
+#    mv .\bladebit\ .\venv\lib\site-packages\
+#}
 
 Write-Output "   ---"
 Write-Output "Build chives-blockchain wheels"
@@ -148,10 +149,10 @@ pyinstaller --log-level INFO $SPEC_FILE
 Write-Output "   ---"
 Write-Output "Copy chives executables to chives-blockchain-gui\"
 Write-Output "   ---"
-Write-Output "Copy chives executables to chives-blockchain-gui\"
-Write-Output "   ---"
 Copy-Item "dist\daemon" -Destination "..\chives-blockchain-gui\" -Recurse
 Set-Location -Path "..\chives-blockchain-gui" -PassThru
+
+git status
 
 Write-Output "   ---"
 Write-Output "Prepare Electron packager"
@@ -161,6 +162,8 @@ npm install --save-dev electron-winstaller
 npm install -g electron-packager
 npm install
 npm audit fix
+
+git status
 
 Write-Output "   ---"
 Write-Output "Electron package Windows Installer"
@@ -182,6 +185,15 @@ $packageName = "Chives-$packageVersion"
 Write-Output "packageName is $packageName"
 
 Write-Output "   ---"
+Write-Output "fix version in package.json"
+choco install jq
+cp package.json package.json.orig
+jq --arg VER "$env:CHIVES_INSTALLER_VERSION" '.version=$VER' package.json > temp.json
+rm package.json
+mv temp.json package.json
+Write-Output "   ---"
+
+Write-Output "   ---"
 Write-Output "electron-packager"
 electron-packager . Chives --asar.unpack="**\daemon\**" --overwrite --icon=.\src\assets\img\chives.ico --app-version=$packageVersion
 Write-Output "   ---"
@@ -190,6 +202,8 @@ Write-Output "   ---"
 Write-Output "node winstaller.js"
 node winstaller.js
 Write-Output "   ---"
+
+git status
 
 If ($env:HAS_SECRET) {
    Write-Output "   ---"
@@ -200,6 +214,8 @@ If ($env:HAS_SECRET) {
    }   Else    {
    Write-Output "Skipping timestamp and verify signatures - no authorization to install certificates"
 }
+
+git status
 
 Write-Output "   ---"
 Write-Output "Windows Installer complete"

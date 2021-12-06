@@ -3,7 +3,6 @@
 set -euo pipefail
 
 pip install setuptools_scm
-pip install requests
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined.
 # If the env variable NOTARIZE and the username and password variables are
 # set, this will attempt to Notarize the signed DMG.

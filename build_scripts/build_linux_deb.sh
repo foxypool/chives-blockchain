@@ -12,7 +12,6 @@ else
 fi
 
 pip install setuptools_scm
-pip install requests
 # The environment variable CHIVES_INSTALLER_VERSION needs to be defined
 # If the env variable NOTARIZE and the username and password variables are
 # set, this will attempt to Notarize the signed DMG
@@ -25,8 +24,8 @@ fi
 echo "Chives Installer Version is: $CHIVES_INSTALLER_VERSION"
 
 echo "Installing npm and electron packagers"
-sudo npm install electron-packager -g
-sudo npm install electron-installer-debian -g
+npm install electron-packager -g
+npm install electron-installer-debian -g
 
 echo "Create dist/"
 rm -rf dist

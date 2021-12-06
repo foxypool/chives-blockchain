@@ -23,8 +23,18 @@ from chives.types.full_block import FullBlock
 from chives.types.generator_types import CompressorArg
 from chives.types.unfinished_block import UnfinishedBlock
 from chives.util.ints import uint8, uint32, uint64, uint128
+from chives.util.lru_cache import LRUCache
+from chives.util.streamable import Streamable, streamable
 
 log = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass(frozen=True)
+@streamable
+class FullNodeStorePeakResult(Streamable):
+    added_eos: Optional[EndOfSubSlotBundle]
+    new_signage_points: List[Tuple[uint8, SignagePoint]]
+    new_infusion_points: List[timelord_protocol.NewInfusionPointVDF]
 
 
 class FullNodeStore:
@@ -61,6 +71,10 @@ class FullNodeStore:
     # This stores the time that each key was added to the future cache, so we can clear old keys
     future_cache_key_times: Dict[bytes32, int]
 
+    # These recent caches are for pooling support
+    recent_signage_points: LRUCache
+    recent_eos: LRUCache
+
     # Partial hashes of unfinished blocks we are requesting
     requesting_unfinished_blocks: Set[bytes32]
 
@@ -80,6 +94,8 @@ class FullNodeStore:
         self.future_eos_cache = {}
         self.future_sp_cache = {}
         self.future_ip_cache = {}
+        self.recent_signage_points = LRUCache(500)
+        self.recent_eos = LRUCache(50)
         self.requesting_unfinished_blocks = set()
         self.previous_generator = None
         self.future_cache_key_times = {}
@@ -277,6 +293,14 @@ class FullNodeStore:
 
         if peak is not None and peak.total_iters > last_slot_iters:
             # Peak is in this slot
+
+            # Note: Adding an end of subslot does not lock the blockchain, for performance reasons. Only the
+            # timelord_lock is used. Therefore, it's possible that we add a new peak at the same time as seeing
+            # the finished subslot, and the peak is not fully added yet, so it looks like we still need the subslot.
+            # In that case, we will exit here and let the new_peak code add the subslot.
+            if total_iters < peak.total_iters:
+                return None
+
             rc_challenge = eos.reward_chain.end_of_slot_vdf.challenge
             cc_start_element = peak.challenge_vdf_output
             iters = uint64(total_iters - peak.total_iters)
@@ -426,6 +450,9 @@ class FullNodeStore:
 
         self.finished_sub_slots.append((eos, [None] * self.constants.NUM_SPS_SUB_SLOT, total_iters))
 
+        new_cc_hash = eos.challenge_chain.get_hash()
+        self.recent_eos.put(new_cc_hash, (eos, time.time()))
+
         new_ips: List[timelord_protocol.NewInfusionPointVDF] = []
         for ip in self.future_ip_cache.get(eos.reward_chain.get_hash(), []):
             new_ips.append(ip)
@@ -566,6 +593,7 @@ class FullNodeStore:
                         return False
 
                 sp_arr[index] = signage_point
+                self.recent_signage_points.put(signage_point.cc_vdf.output.get_hash(), (signage_point, time.time()))
                 return True
         self.add_to_future_sp(signage_point, index)
         return False
@@ -641,9 +669,7 @@ class FullNodeStore:
         ip_sub_slot: Optional[EndOfSubSlotBundle],  # None if in first slot
         fork_block: Optional[BlockRecord],
         blocks: BlockchainInterface,
-    ) -> Tuple[
-        Optional[EndOfSubSlotBundle], List[Tuple[uint8, SignagePoint]], List[timelord_protocol.NewInfusionPointVDF]
-    ]:
+    ) -> FullNodeStorePeakResult:
         """
         If the peak is an overflow block, must provide two sub-slots: one for the current sub-slot and one for
         the prev sub-slot (since we still might get more blocks with an sp in the previous sub-slot)
@@ -728,7 +754,11 @@ class FullNodeStore:
         self.future_sp_cache.pop(peak.reward_infusion_new_challenge, [])
         self.future_ip_cache.pop(peak.reward_infusion_new_challenge, [])
 
-        return new_eos, new_sps, new_ips
+        for eos_op, _, _ in self.finished_sub_slots:
+            if eos_op is not None:
+                self.recent_eos.put(eos_op.challenge_chain.get_hash(), (eos_op, time.time()))
+
+        return FullNodeStorePeakResult(new_eos, new_sps, new_ips)
 
     def get_finished_sub_slots(
         self,

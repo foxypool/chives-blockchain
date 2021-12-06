@@ -1,3 +1,5 @@
+from typing import Optional
+
 import click
 
 
@@ -47,7 +49,12 @@ def farm_cmd() -> None:
     default=None,
     show_default=True,
 )
-def summary_cmd(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port: int, farmer_rpc_port: int) -> None:
+def summary_cmd(
+    rpc_port: Optional[int],
+    wallet_rpc_port: Optional[int],
+    harvester_rpc_port: Optional[int],
+    farmer_rpc_port: Optional[int],
+) -> None:
     from .farm_funcs import summary
     import asyncio
 
@@ -71,11 +78,12 @@ def summary_cmd(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port: int, fa
     default=20,
     show_default=True,
 )
-def challenges_cmd(farmer_rpc_port: int, limit: int) -> None:
+def challenges_cmd(farmer_rpc_port: Optional[int], limit: int) -> None:
     from .farm_funcs import challenges
     import asyncio
 
     asyncio.run(challenges(farmer_rpc_port, limit))
+
 
 
 @farm_cmd.command("uploadfarmerdata", short_help="Upload the farm summary and challenges data to community.chivescoin.org, and you can query the data in this site.")
@@ -140,8 +148,11 @@ def uploadfarmerdata_cmd(rpc_port: int, wallet_rpc_port: int, harvester_rpc_port
                 print(content)
             except json.JSONDecodeError as e:
                 # No nothing
-                print("https://community.chivescoin.org no respone. Json parse failed.")
+                print("https://community.chivescoin.org no respone. Json parse failed.")except requests.exceptions.ConnectionError:
+            print('ConnectionError -- please wait 600 seconds')
+        except requests.exceptions.ChunkedEncodingError:
+            print('ChunkedEncodingError -- please wait 600 seconds')
         except:
-            print("Network Error.");
+            print('Unfortunitely -- An Unknow Error Happened, Please wait 600 seconds')
         time.sleep(600)
 

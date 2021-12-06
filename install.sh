@@ -1,5 +1,29 @@
 #!/bin/bash
 set -e
+
+USAGE_TEXT="\
+Usage: $0 [-d]
+
+  -d                          install development dependencies
+  -h                          display this help and exit
+"
+
+usage() {
+  echo "${USAGE_TEXT}"
+}
+
+EXTRAS=
+
+while getopts dh flag
+do
+  case "${flag}" in
+    # development
+    d) EXTRAS=${EXTRAS}dev,;;
+    h) usage; exit 0;;
+    *) echo; usage; exit 1;;
+  esac
+done
+
 UBUNTU=false
 DEBIAN=false
 if [ "$(uname)" = "Linux" ]; then
@@ -82,7 +106,7 @@ fi
 find_python() {
 	set +e
 	unset BEST_VERSION
-	for V in 37 3.7 38 3.8 39 3.9 3; do
+	for V in 39 3.9 38 3.8 37 3.7 3; do
 		if which python$V >/dev/null; then
 			if [ "$BEST_VERSION" = "" ]; then
 				BEST_VERSION=$V
@@ -109,19 +133,25 @@ if [ ! -f "activate" ]; then
 	ln -s venv/bin/activate .
 fi
 
+EXTRAS=${EXTRAS%,}
+if [ -n "${EXTRAS}" ]; then
+  EXTRAS=[${EXTRAS}]
+fi
+
 # shellcheck disable=SC1091
 . ./activate
 # pip 20.x+ supports Linux binary wheels
 python -m pip install --upgrade pip
 python -m pip install wheel
+python -m pip install requests
 #if [ "$INSTALL_PYTHON_VERSION" = "3.8" ]; then
 # This remains in case there is a diversion of binary wheels
 python -m pip install --extra-index-url https://pypi.chia.net/simple/ miniupnpc==2.2.2
-python -m pip install -e . --extra-index-url https://pypi.chia.net/simple/
+python -m pip install -e ."${EXTRAS}" --extra-index-url https://pypi.chia.net/simple/
 
 echo ""
 echo "Chives blockchain install.sh complete."
-echo "For assistance join us on Keybase in the #testnet chat channel:"
+echo "For assistance join us on Keybase in the #support chat channel:"
 echo "https://keybase.io/team/chives_network.public"
 echo ""
 echo "Try the Quick Start Guide to running chives-blockchain:"

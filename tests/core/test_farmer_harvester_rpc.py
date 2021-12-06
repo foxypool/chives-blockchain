@@ -1,11 +1,13 @@
+import logging
 from secrets import token_bytes
+import time
 
 import pytest
 from blspy import AugSchemeMPL
 from chiapos import DiskPlotter
 
 from chives.consensus.coinbase import create_puzzlehash_for_pk
-from chives.plotting.plot_tools import stream_plot_info_ph, stream_plot_info_pk
+from chives.plotting.util import stream_plot_info_ph, stream_plot_info_pk
 from chives.protocols import farmer_protocol
 from chives.rpc.farmer_rpc_api import FarmerRpcApi
 from chives.rpc.farmer_rpc_client import FarmerRpcClient
@@ -15,12 +17,16 @@ from chives.rpc.rpc_server import start_rpc_server
 from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.util.bech32m import decode_puzzle_hash, encode_puzzle_hash
 from tests.block_tools import get_plot_dir
-from chives.util.config import load_config
+from chives.util.byte_types import hexstr_to_bytes
+from chives.util.config import load_config, save_config
 from chives.util.hash import std_hash
 from chives.util.ints import uint8, uint16, uint32, uint64
-from chives.wallet.derive_keys import master_sk_to_wallet_sk
+from chives.wallet.derive_keys import master_sk_to_wallet_sk, master_sk_to_pooling_authentication_sk
 from tests.setup_nodes import bt, self_hostname, setup_farmer_harvester, test_constants
-from tests.time_out_assert import time_out_assert
+from tests.time_out_assert import time_out_assert, time_out_assert_custom_interval
+from tests.util.rpc import validate_get_routes
+
+log = logging.getLogger(__name__)
 
 
 class TestRpc:
@@ -72,6 +78,9 @@ class TestRpc:
         try:
             client = await FarmerRpcClient.create(self_hostname, test_rpc_port, bt.root_path, config)
             client_2 = await HarvesterRpcClient.create(self_hostname, test_rpc_port_2, bt.root_path, config)
+
+            await validate_get_routes(client, farmer_rpc_api)
+            await validate_get_routes(client_2, harvester_rpc_api)
 
             async def have_connections():
                 return len(await client.get_connections()) > 0
@@ -160,25 +169,29 @@ class TestRpc:
             res_2 = await client_2.get_plots()
             assert len(res_2["plots"]) == num_plots
 
-            assert len(await client_2.get_plot_directories()) == 1
+            # Reset cache and force updates cache every second to make sure the farmer gets the most recent data
+            update_interval_before = farmer_api.farmer.update_harvester_cache_interval
+            farmer_api.farmer.update_harvester_cache_interval = 1
+            farmer_api.farmer.harvester_cache = {}
 
-            await client_2.add_plot_directory(str(plot_dir))
-            await client_2.add_plot_directory(str(plot_dir_sub))
+            # Test farmer get_harvesters
+            async def test_get_harvesters():
+                harvester.plot_manager.trigger_refresh()
+                await time_out_assert(5, harvester.plot_manager.needs_refresh, value=False)
+                farmer_res = await client.get_harvesters()
+                if len(list(farmer_res["harvesters"])) != 1:
+                    log.error(f"test_get_harvesters: invalid harvesters {list(farmer_res['harvesters'])}")
+                    return False
+                if len(list(farmer_res["harvesters"][0]["plots"])) != num_plots:
+                    log.error(f"test_get_harvesters: invalid plots {list(farmer_res['harvesters'])}")
+                    return False
+                return True
 
-            assert len(await client_2.get_plot_directories()) == 3
+            await time_out_assert_custom_interval(30, 1, test_get_harvesters)
 
-            res_2 = await client_2.get_plots()
-            assert len(res_2["plots"]) == num_plots + 2
-
-            await client_2.delete_plot(str(plot_dir / filename))
-            await client_2.delete_plot(str(plot_dir / filename_2))
-            await client_2.refresh_plots()
-            res_3 = await client_2.get_plots()
-
-            assert len(res_3["plots"]) == num_plots + 1
-
-            await client_2.remove_plot_directory(str(plot_dir))
-            assert len(await client_2.get_plot_directories()) == 2
+            # Reset cache and reset update interval to avoid hitting the rate limit
+            farmer_api.farmer.update_harvester_cache_interval = update_interval_before
+            farmer_api.farmer.harvester_cache = {}
 
             targets_1 = await client.get_reward_targets(False)
             assert "have_pool_sk" not in targets_1
@@ -191,7 +204,7 @@ class TestRpc:
                 master_sk_to_wallet_sk(bt.pool_master_sk, uint32(472)).get_g1()
             )
 
-            await client.set_reward_targets(encode_puzzle_hash(new_ph, "xcc"), encode_puzzle_hash(new_ph_2, "xcc"))
+            await client.set_reward_targets(encode_puzzle_hash(new_ph, "xch"), encode_puzzle_hash(new_ph_2, "xch"))
             targets_3 = await client.get_reward_targets(True)
             assert decode_puzzle_hash(targets_3["farmer_target"]) == new_ph
             assert decode_puzzle_hash(targets_3["pool_target"]) == new_ph_2
@@ -200,7 +213,7 @@ class TestRpc:
             new_ph_3: bytes32 = create_puzzlehash_for_pk(
                 master_sk_to_wallet_sk(bt.pool_master_sk, uint32(1888)).get_g1()
             )
-            await client.set_reward_targets(None, encode_puzzle_hash(new_ph_3, "xcc"))
+            await client.set_reward_targets(None, encode_puzzle_hash(new_ph_3, "xch"))
             targets_4 = await client.get_reward_targets(True)
             assert decode_puzzle_hash(targets_4["farmer_target"]) == new_ph
             assert decode_puzzle_hash(targets_4["pool_target"]) == new_ph_3
@@ -208,10 +221,10 @@ class TestRpc:
 
             root_path = farmer_api.farmer._root_path
             config = load_config(root_path, "config.yaml")
-            assert config["farmer"]["xcc_target_address"] == encode_puzzle_hash(new_ph, "xcc")
-            assert config["pool"]["xcc_target_address"] == encode_puzzle_hash(new_ph_3, "xcc")
+            assert config["farmer"]["xcc_target_address"] == encode_puzzle_hash(new_ph, "xch")
+            assert config["pool"]["xcc_target_address"] == encode_puzzle_hash(new_ph_3, "xch")
 
-            new_ph_3_encoded = encode_puzzle_hash(new_ph_3, "xcc")
+            new_ph_3_encoded = encode_puzzle_hash(new_ph_3, "xch")
             added_char = new_ph_3_encoded + "a"
             with pytest.raises(ValueError):
                 await client.set_reward_targets(None, added_char)
@@ -219,6 +232,53 @@ class TestRpc:
             replaced_char = new_ph_3_encoded[0:-1] + "a"
             with pytest.raises(ValueError):
                 await client.set_reward_targets(None, replaced_char)
+
+            assert len((await client.get_pool_state())["pool_state"]) == 0
+            all_sks = farmer_api.farmer.local_keychain.get_all_private_keys()
+            auth_sk = master_sk_to_pooling_authentication_sk(all_sks[0][0], 2, 1)
+            pool_list = [
+                {
+                    "launcher_id": "ae4ef3b9bfe68949691281a015a9c16630fc8f66d48c19ca548fb80768791afa",
+                    "authentication_public_key": bytes(auth_sk.get_g1()).hex(),
+                    "owner_public_key": "84c3fcf9d5581c1ddc702cb0f3b4a06043303b334dd993ab42b2c320ebfa98e5ce558448615b3f69638ba92cf7f43da5",  # noqa
+                    "payout_instructions": "c2b08e41d766da4116e388357ed957d04ad754623a915f3fd65188a8746cf3e8",
+                    "pool_url": "localhost",
+                    "p2_singleton_puzzle_hash": "16e4bac26558d315cded63d4c5860e98deb447cc59146dd4de06ce7394b14f17",
+                    "target_puzzle_hash": "344587cf06a39db471d2cc027504e8688a0a67cce961253500c956c73603fd58",
+                }
+            ]
+            config["pool"]["pool_list"] = pool_list
+            save_config(root_path, "config.yaml", config)
+            await farmer_api.farmer.update_pool_state()
+
+            pool_state = (await client.get_pool_state())["pool_state"]
+            assert len(pool_state) == 1
+            assert (
+                pool_state[0]["pool_config"]["payout_instructions"]
+                == "c2b08e41d766da4116e388357ed957d04ad754623a915f3fd65188a8746cf3e8"
+            )
+            await client.set_payout_instructions(hexstr_to_bytes(pool_state[0]["pool_config"]["launcher_id"]), "1234vy")
+            await farmer_api.farmer.update_pool_state()
+            pool_state = (await client.get_pool_state())["pool_state"]
+            assert pool_state[0]["pool_config"]["payout_instructions"] == "1234vy"
+
+            now = time.time()
+            # Big arbitrary numbers used to be unlikely to accidentally collide.
+            before_24h = (now - (25 * 60 * 60), 29984713)
+            since_24h = (now - (23 * 60 * 60), 93049817)
+            for p2_singleton_puzzle_hash, pool_dict in farmer_api.farmer.pool_state.items():
+                for key in ["points_found_24h", "points_acknowledged_24h"]:
+                    pool_dict[key].insert(0, since_24h)
+                    pool_dict[key].insert(0, before_24h)
+
+            sp = farmer_protocol.NewSignagePoint(
+                std_hash(b"1"), std_hash(b"2"), std_hash(b"3"), uint64(1), uint64(1000000), uint8(2)
+            )
+            await farmer_api.new_signage_point(sp)
+            client_pool_state = await client.get_pool_state()
+            for pool_dict in client_pool_state["pool_state"]:
+                for key in ["points_found_24h", "points_acknowledged_24h"]:
+                    assert pool_dict[key][0] == list(since_24h)
 
         finally:
             # Checks that the RPC manages to stop the node

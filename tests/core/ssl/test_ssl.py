@@ -5,8 +5,8 @@ import pytest
 
 from chives.protocols.shared_protocol import protocol_version
 from chives.server.outbound_message import NodeType
-from chives.server.server import ChiaServer, ssl_context_for_client
-from chives.server.ws_connection import WSChiaConnection
+from chives.server.server import ChivesServer, ssl_context_for_client
+from chives.server.ws_connection import WSChivesConnection
 from chives.ssl.create_ssl import generate_ca_signed_cert
 from chives.types.peer_info import PeerInfo
 from tests.block_tools import test_constants
@@ -21,14 +21,14 @@ from tests.setup_nodes import (
 )
 
 
-async def establish_connection(server: ChiaServer, dummy_port: int, ssl_context) -> bool:
+async def establish_connection(server: ChivesServer, dummy_port: int, ssl_context) -> bool:
     timeout = aiohttp.ClientTimeout(total=10)
     session = aiohttp.ClientSession(timeout=timeout)
     try:
         incoming_queue: asyncio.Queue = asyncio.Queue()
         url = f"wss://{self_hostname}:{server._port}/ws"
         ws = await session.ws_connect(url, autoclose=False, autoping=True, ssl=ssl_context)
-        wsc = WSChiaConnection(
+        wsc = WSChivesConnection(
             NodeType.FULL_NODE,
             ws,
             server._port,
@@ -75,7 +75,7 @@ class TestSSL:
     async def test_public_connections(self, wallet_node):
         full_nodes, wallets = wallet_node
         full_node_api = full_nodes[0]
-        server_1: ChiaServer = full_node_api.full_node.server
+        server_1: ChivesServer = full_node_api.full_node.server
         wallet_node, server_2 = wallets[0]
 
         success = await server_2.start_client(PeerInfo(self_hostname, uint16(server_1._port)), None)
@@ -96,7 +96,7 @@ class TestSSL:
             priv_key,
         )
         ssl_context = ssl_context_for_client(
-            farmer_server.ca_private_crt_path, farmer_server.ca_private_crt_path, priv_crt, priv_key
+            farmer_server.ca_private_crt_path, farmer_server.ca_private_key_path, priv_crt, priv_key
         )
         connected = await establish_connection(farmer_server, 12312, ssl_context)
         assert connected is True
@@ -108,12 +108,12 @@ class TestSSL:
             farmer_server.chives_ca_crt_path.read_bytes(), farmer_server.chives_ca_key_path.read_bytes(), pub_crt, pub_key
         )
         ssl_context = ssl_context_for_client(
-            farmer_server.chives_ca_crt_path, farmer_server.chives_ca_crt_path, pub_crt, pub_key
+            farmer_server.chives_ca_crt_path, farmer_server.chives_ca_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(farmer_server, 12312, ssl_context)
         assert connected is False
         ssl_context = ssl_context_for_client(
-            farmer_server.ca_private_crt_path, farmer_server.ca_private_crt_path, pub_crt, pub_key
+            farmer_server.ca_private_crt_path, farmer_server.ca_private_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(farmer_server, 12312, ssl_context)
         assert connected is False
@@ -134,7 +134,7 @@ class TestSSL:
             pub_key,
         )
         ssl_context = ssl_context_for_client(
-            full_node_server.chives_ca_crt_path, full_node_server.chives_ca_crt_path, pub_crt, pub_key
+            full_node_server.chives_ca_crt_path, full_node_server.chives_ca_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(full_node_server, 12312, ssl_context)
         assert connected is True
@@ -151,7 +151,7 @@ class TestSSL:
             wallet_server.chives_ca_crt_path.read_bytes(), wallet_server.chives_ca_key_path.read_bytes(), pub_crt, pub_key
         )
         ssl_context = ssl_context_for_client(
-            wallet_server.chives_ca_crt_path, wallet_server.chives_ca_crt_path, pub_crt, pub_key
+            wallet_server.chives_ca_crt_path, wallet_server.chives_ca_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(wallet_server, 12312, ssl_context)
         assert connected is False
@@ -166,7 +166,7 @@ class TestSSL:
             priv_key,
         )
         ssl_context = ssl_context_for_client(
-            wallet_server.ca_private_crt_path, wallet_server.ca_private_crt_path, priv_crt, priv_key
+            wallet_server.ca_private_crt_path, wallet_server.ca_private_key_path, priv_crt, priv_key
         )
         connected = await establish_connection(wallet_server, 12312, ssl_context)
         assert connected is False
@@ -186,7 +186,7 @@ class TestSSL:
             pub_key,
         )
         ssl_context = ssl_context_for_client(
-            harvester_server.chives_ca_crt_path, harvester_server.chives_ca_crt_path, pub_crt, pub_key
+            harvester_server.chives_ca_crt_path, harvester_server.chives_ca_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(harvester_server, 12312, ssl_context)
         assert connected is False
@@ -201,7 +201,7 @@ class TestSSL:
             priv_key,
         )
         ssl_context = ssl_context_for_client(
-            harvester_server.ca_private_crt_path, harvester_server.ca_private_crt_path, priv_crt, priv_key
+            harvester_server.ca_private_crt_path, harvester_server.ca_private_key_path, priv_crt, priv_key
         )
         connected = await establish_connection(harvester_server, 12312, ssl_context)
         assert connected is False
@@ -220,7 +220,7 @@ class TestSSL:
             pub_key,
         )
         ssl_context = ssl_context_for_client(
-            introducer_server.chives_ca_crt_path, introducer_server.chives_ca_crt_path, pub_crt, pub_key
+            introducer_server.chives_ca_crt_path, introducer_server.chives_ca_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(introducer_server, 12312, ssl_context)
         assert connected is True
@@ -239,7 +239,7 @@ class TestSSL:
             pub_key,
         )
         ssl_context = ssl_context_for_client(
-            timelord_server.chives_ca_crt_path, timelord_server.chives_ca_crt_path, pub_crt, pub_key
+            timelord_server.chives_ca_crt_path, timelord_server.chives_ca_key_path, pub_crt, pub_key
         )
         connected = await establish_connection(timelord_server, 12312, ssl_context)
         assert connected is False
@@ -254,7 +254,7 @@ class TestSSL:
             priv_key,
         )
         ssl_context = ssl_context_for_client(
-            timelord_server.ca_private_crt_path, timelord_server.ca_private_crt_path, priv_crt, priv_key
+            timelord_server.ca_private_crt_path, timelord_server.ca_private_key_path, priv_crt, priv_key
         )
         connected = await establish_connection(timelord_server, 12312, ssl_context)
         assert connected is False

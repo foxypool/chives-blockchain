@@ -17,7 +17,7 @@ from chives.wallet.chiveslisp import (
 )
 
 
-class TestChialisp:
+class TestChiveslisp:
     def test_sexp(self):
         assert sexp() == "()"
         assert sexp(1) == "(1)"

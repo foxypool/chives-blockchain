@@ -1,13 +1,13 @@
 # Introduction
 
 Welcome to the chives-blockchain project!
-We are happy that you are taking a look at the code for Chia, a proof of space and time cryptocurrency.
+We are happy that you are taking a look at the code for Chives, a proof of space and time cryptocurrency.
 
 A lot of fascinating new cryptography and blockchain concepts are used and implemented here.
 This repo includes the code for the Chives full node, farmer, and timelord (in chives folder), which are all written in python.
 It also includes a verifiable delay function implementation that it imports from the [chiavdf repo](https://github.com/HiveProject2021/chiavdf) (in c/c++), and a proof of space implementation that it imports from the [chiapos repo](https://github.com/HiveProject2021/chiapos). BLS signatures are imported from the [bls-signatures repo](https://github.com/HiveProject2021/bls-signatures) as blspy. There is an additional dependency on the [chiabip158 repo](https://github.com/HiveProject2021/chiabip158). For major platforms, binary and source wheels are shipped to PyPI from each dependent repo. Then chives-blockchain can pip install those from PyPI or they can be prepackaged as is done for the Windows installer. On unsupported platforms, pip will fall back to the source distributions, to be compiled locally.
 
-If you want to learn more about this project, read the [wiki](https://github.com/HiveProject2021/chives-blockchain/wiki), or check out the [green paper](https://www.chivescoin.org/assets/ChiaGreenPaper.pdf).
+If you want to learn more about this project, read the [wiki](https://github.com/HiveProject2021/chives-blockchain/wiki), or check out the [green paper](https://www.chivescoin.org/assets/ChivesGreenPaper.pdf).
 
 ## Contributions
 
@@ -25,7 +25,7 @@ We ask that external contributors create a fork of the `main` branch for any fea
 
 Members of the Chives organization may create feature branches from the `main` branch.
 
-In the event an emergency fix is required for the release version of Chia, members of the Chives organization will create a feature branch from the current release branch `1.0.0`.
+In the event an emergency fix is required for the release version of Chives, members of the Chives organization will create a feature branch from the current release branch `1.0.0`.
 
 ## Branching Strategy
 
@@ -61,6 +61,16 @@ The [Mypy library](https://mypy.readthedocs.io/en/stable/) is very useful for en
 
 If you want verbose logging for tests, edit the `tests/pytest.ini` file.
 
+## Pre-Commit
+
+We provide a [pre-commit configuration](https://github.com/HiveProject2021/chives-blockchain/blob/main/.pre-commit-config.yaml) which triggers several useful
+hooks (including linters/formatter) before each commit you make if you installed and set up [pre-commit](https://pre-commit.com/). This will help
+to reduce the time you spend on failed CI jobs.
+
+To install pre-commit on your system see https://pre-commit.com/#installation. After installation, you can either use it manually
+with `pre-commit run` or let it trigger the hooks automatically before each commit by installing the
+provided configuration with `pre-commit install`.
+
 ## Configure VS code
 
 1. Install python extension
@@ -86,7 +96,7 @@ workflow.
 
 ## Testnets and review environments
 
-With the launch of `1.0.0` we will begin running an official `testnet`.  
+With the launch of `1.0.0` we will begin running an official `testnet`.
 Prior to the release of `1.1.0` there will be two running test nets. `testnet` and `transaction-beta-testnet`. The `transaction-beta-testnet` testnet will be a beta of the pending 1.1 release, which will enable transactions on the chives blockchain.
 Following the release of `1.1.0`, the official `testnet` will include all changes that have been accepted to the current release branch.
 
@@ -99,7 +109,7 @@ If you are not a Chives organization member, you can enquire about deploying a `
 
 To propose changes, please make a pull request to the `main` branch. See Branching Strategy above.
 
-To propose changes for the production releases of Chia, please make a pull request to the latest release branch.
+To propose changes for the production releases of Chives, please make a pull request to the latest release branch.
 
 ## Copyright
 

@@ -129,7 +129,12 @@ def create_foliage(
         # Calculate the cost of transactions
         if block_generator is not None:
             generator_block_heights_list = block_generator.block_height_list()
-            result: NPCResult = get_name_puzzle_conditions(block_generator, constants.MAX_BLOCK_COST_CLVM, True)
+            result: NPCResult = get_name_puzzle_conditions(
+                block_generator,
+                constants.MAX_BLOCK_COST_CLVM,
+                cost_per_byte=constants.COST_PER_BYTE,
+                safe_mode=True,
+            )
             cost = calculate_cost_of_program(block_generator.program, result, constants.COST_PER_BYTE)
 
             removal_amount = 0
@@ -152,10 +157,7 @@ def create_foliage(
 
             assert curr.fees is not None
             pool_coin = create_pool_coin(
-                curr.height, 
-                curr.pool_puzzle_hash, 
-                calculate_pool_reward(curr.height), 
-                constants.GENESIS_CHALLENGE,
+                curr.height, curr.pool_puzzle_hash, calculate_pool_reward(curr.height), constants.GENESIS_CHALLENGE
             )
 
             farmer_coin = create_farmer_coin(
@@ -269,7 +271,7 @@ def create_foliage(
         )
         assert foliage_transaction_block is not None
 
-        foliage_transaction_block_hash: Optional[bytes32] = foliage_transaction_block.get_hash()
+        foliage_transaction_block_hash: bytes32 = foliage_transaction_block.get_hash()
         foliage_transaction_block_signature: Optional[G2Element] = get_plot_signature(
             foliage_transaction_block_hash, reward_block_unfinished.proof_of_space.plot_public_key
         )
@@ -360,7 +362,7 @@ def create_unfinished_block(
 
     new_sub_slot: bool = len(finished_sub_slots) > 0
 
-    cc_sp_hash: Optional[bytes32] = slot_cc_challenge
+    cc_sp_hash: bytes32 = slot_cc_challenge
 
     # Only enters this if statement if we are in testing mode (making VDF proofs here)
     if signage_point.cc_vdf is not None:

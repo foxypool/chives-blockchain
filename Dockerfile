@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.9-slim
 
 ENV TZ=Europe/Berlin
 RUN ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime && echo "$TZ" > /etc/timezone
@@ -19,6 +19,7 @@ RUN pip install --extra-index-url https://pypi.chia.net/simple/ miniupnpc==2.2.2
 RUN pip install -e . --extra-index-url https://pypi.chia.net/simple/
 
 VOLUME /root/.chives
+VOLUME /root/.chives_keys
 VOLUME /root/.local/share/python_keyring
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

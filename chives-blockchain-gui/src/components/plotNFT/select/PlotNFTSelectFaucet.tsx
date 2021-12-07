@@ -16,7 +16,7 @@ export default function PlotNFTSelectFaucet(props: Props) {
   const openExternal = useOpenExternal();
 
   function handleClick() {
-    openExternal('https://faucet.chivescoin.org/');
+    openExternal('https://discord.gg/chivescoin');
   }
 
   return (
@@ -39,7 +39,7 @@ export default function PlotNFTSelectFaucet(props: Props) {
 
       <Box>
         <Button onClick={handleClick} color="primary" variant="contained">
-          <Trans>Add {currencyCode} from the Faucet</Trans>
+          <Trans>Request {currencyCode} from the Chives Discord</Trans>
         </Button>
       </Box>
     </CardStep>

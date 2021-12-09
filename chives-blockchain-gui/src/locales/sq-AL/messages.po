@@ -127,7 +127,7 @@ msgid "Add plot directory"
 msgstr "Shto një direktori për Plotet"
 
 #: src/components/plotNFT/select/PlotNFTSelectFaucet.tsx:42
-msgid "Add {currencyCode} from the Faucet"
+msgid "Request {currencyCode} from the Chives Discord"
 msgstr "Shtoni {currencyCode} nga Rubineti"
 
 #: src/components/wallet/coloured/WalletColoured.tsx:561

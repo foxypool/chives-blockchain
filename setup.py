@@ -123,7 +123,7 @@ kwargs = dict(
         "chives.ssl": ["chives_ca.crt", "chives_ca.key", "dst_root_ca.pem"],
         "mozilla-ca": ["cacert.pem"],
     },
-    version="1.2.11",
+    version="1.2.11+og-1.1.0",
     long_description=open("README.md", encoding='UTF-8').read(),
     long_description_content_type="text/markdown",
     zip_safe=False,

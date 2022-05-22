@@ -10,16 +10,10 @@ from chives.types.mempool_inclusion_status import MempoolInclusionStatus
 from chives.types.peer_info import PeerInfo
 from chives.util.bech32m import encode_puzzle_hash
 from chives.util.ints import uint16
+from chives.wallet.transaction_record import TransactionRecord
 from chives.wallet.util.wallet_types import WalletType
-from tests.setup_nodes import self_hostname, setup_simulators_and_wallets
 from tests.time_out_assert import time_out_assert
 from tests.wallet.sync.test_wallet_sync import wallet_height_at_least
-
-
-@pytest.fixture(scope="module")
-def event_loop():
-    loop = asyncio.get_event_loop()
-    yield loop
 
 
 async def is_transaction_in_mempool(user_wallet_id, api, tx_id: bytes32) -> bool:
@@ -27,7 +21,7 @@ async def is_transaction_in_mempool(user_wallet_id, api, tx_id: bytes32) -> bool
         val = await api.get_transaction({"wallet_id": user_wallet_id, "transaction_id": tx_id.hex()})
     except ValueError:
         return False
-    for _, mis, _ in val["transaction"].sent_to:
+    for _, mis, _ in TransactionRecord.from_json_dict_convenience(val["transaction"]).sent_to:
         if (
             MempoolInclusionStatus(mis) == MempoolInclusionStatus.SUCCESS
             or MempoolInclusionStatus(mis) == MempoolInclusionStatus.PENDING
@@ -41,7 +35,7 @@ async def is_transaction_confirmed(user_wallet_id, api, tx_id: bytes32) -> bool:
         val = await api.get_transaction({"wallet_id": user_wallet_id, "transaction_id": tx_id.hex()})
     except ValueError:
         return False
-    return val["transaction"].confirmed
+    return TransactionRecord.from_json_dict_convenience(val["transaction"]).confirmed
 
 
 async def check_balance(api, wallet_id):
@@ -51,14 +45,9 @@ async def check_balance(api, wallet_id):
 
 
 class TestRLWallet:
-    @pytest.fixture(scope="function")
-    async def three_wallet_nodes(self):
-        async for _ in setup_simulators_and_wallets(1, 3, {}):
-            yield _
-
     @pytest.mark.asyncio
     @pytest.mark.skip
-    async def test_create_rl_coin(self, three_wallet_nodes):
+    async def test_create_rl_coin(self, three_wallet_nodes, self_hostname):
         num_blocks = 4
         full_nodes, wallets = three_wallet_nodes
         full_node_api = full_nodes[0]
@@ -139,7 +128,7 @@ class TestRLWallet:
         assert await wallet.get_confirmed_balance() == fund_owners_initial_balance - 101
         assert await check_balance(api_user, user_wallet_id) == 100
         receiving_wallet = wallet_node_2.wallet_state_manager.main_wallet
-        address = encode_puzzle_hash(await receiving_wallet.get_new_puzzlehash(), "xch")
+        address = encode_puzzle_hash(await receiving_wallet.get_new_puzzlehash(), "xcc")
         assert await receiving_wallet.get_spendable_balance() == 0
         val = await api_user.send_transaction({"wallet_id": user_wallet_id, "amount": 3, "fee": 2, "address": address})
         await asyncio.sleep(2)
@@ -160,7 +149,7 @@ class TestRLWallet:
         await time_out_assert(15, wallet_height_at_least, True, wallet_node, 68)
         assert await check_balance(api_user, user_wallet_id) == 195
         # test spending
-        puzzle_hash = encode_puzzle_hash(await receiving_wallet.get_new_puzzlehash(), "xch")
+        puzzle_hash = encode_puzzle_hash(await receiving_wallet.get_new_puzzlehash(), "xcc")
         val = await api_user.send_transaction(
             {"wallet_id": user_wallet_id, "amount": 105, "fee": 0, "address": puzzle_hash}
         )

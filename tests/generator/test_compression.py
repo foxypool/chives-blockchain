@@ -11,10 +11,10 @@ from chives.full_node.bundle_tools import (
     simple_solution_generator,
     spend_bundle_to_serialized_coin_spend_entry_list,
 )
-from chives.full_node.generator import run_generator, create_generator_args
+from chives.full_node.generator import run_generator_unsafe, create_generator_args
 from chives.full_node.mempool_check_conditions import get_puzzle_and_solution_for_coin
 from chives.types.blockchain_format.program import Program, SerializedProgram, INFINITE_COST
-from chives.types.generator_types import BlockGenerator, CompressorArg, GeneratorArg
+from chives.types.generator_types import BlockGenerator, CompressorArg
 from chives.types.spend_bundle import SpendBundle
 from chives.util.byte_types import hexstr_to_bytes
 from chives.util.ints import uint32
@@ -29,7 +29,7 @@ from clvm.serialize import sexp_from_stream
 from clvm_tools import binutils
 
 TEST_GEN_DESERIALIZE = load_clvm("test_generator_deserialize.clvm", package_or_requirement="chives.wallet.puzzles")
-DESERIALIZE_MOD = load_clvm("chiveslisp_deserialisation.clvm", package_or_requirement="chives.wallet.puzzles")
+DESERIALIZE_MOD = load_clvm("chialisp_deserialisation.clvm", package_or_requirement="chives.wallet.puzzles")
 
 DECOMPRESS_PUZZLE = load_clvm("decompress_puzzle.clvm", package_or_requirement="chives.wallet.puzzles")
 DECOMPRESS_CSE = load_clvm("decompress_coin_spend_entry.clvm", package_or_requirement="chives.wallet.puzzles")
@@ -74,11 +74,15 @@ def create_multiple_ref_generator(args: MultipleCompressorArg, spend_bundle: Spe
     )
 
     # TODO aqk: Improve ergonomics of CompressorArg -> GeneratorArg conversion
-    generator_args = [
-        GeneratorArg(FAKE_BLOCK_HEIGHT1, args.arg[0].generator),
-        GeneratorArg(FAKE_BLOCK_HEIGHT2, args.arg[1].generator),
+    generator_list = [
+        args.arg[0].generator,
+        args.arg[1].generator,
     ]
-    return BlockGenerator(program, generator_args)
+    generator_heights = [
+        FAKE_BLOCK_HEIGHT1,
+        FAKE_BLOCK_HEIGHT2,
+    ]
+    return BlockGenerator(program, generator_list, generator_heights)
 
 
 def spend_bundle_to_coin_spend_entry_list(bundle: SpendBundle) -> List[Any]:
@@ -117,7 +121,7 @@ class TestCompression(TestCase):
             gen_args = MultipleCompressorArg([ca1, ca2], split_offset)
             spend_bundle: SpendBundle = make_spend_bundle(1)
             multi_gen = create_multiple_ref_generator(gen_args, spend_bundle)
-            cost, result = run_generator(multi_gen, INFINITE_COST)
+            cost, result = run_generator_unsafe(multi_gen, INFINITE_COST)
             results.append(result)
             assert result is not None
             assert cost > 0
@@ -130,8 +134,8 @@ class TestCompression(TestCase):
         c = compressed_spend_bundle_solution(ca, sb)
         s = simple_solution_generator(sb)
         assert c != s
-        cost_c, result_c = run_generator(c, INFINITE_COST)
-        cost_s, result_s = run_generator(s, INFINITE_COST)
+        cost_c, result_c = run_generator_unsafe(c, INFINITE_COST)
+        cost_s, result_s = run_generator_unsafe(s, INFINITE_COST)
         print(result_c)
         assert result_c is not None
         assert result_s is not None

@@ -6,8 +6,8 @@ from blspy import AugSchemeMPL, BasicSchemeMPL, G1Element, G2Element
 from chives.types.blockchain_format.program import Program
 from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.types.coin_spend import CoinSpend
+from chives.types.condition_opcodes import ConditionOpcode
 from chives.types.spend_bundle import SpendBundle
-from chives.util.condition_tools import ConditionOpcode
 from chives.util.hash import std_hash
 from chives.wallet.puzzles import (
     p2_conditions,

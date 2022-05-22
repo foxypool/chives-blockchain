@@ -1,7 +1,8 @@
 import socket
 from ipaddress import ip_address, IPv4Network, IPv6Network
-from typing import Iterable, List, Tuple, Union, Any, Optional
+from typing import Iterable, List, Tuple, Union, Any, Optional, Dict
 from chives.server.outbound_message import NodeType
+from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.types.peer_info import PeerInfo
 from chives.util.ints import uint16
 
@@ -72,3 +73,14 @@ def get_host_addr(host: Union[PeerInfo, str], prefer_ipv6: Optional[bool]) -> st
             return t[4][0]
     # If neither matched preference, just return the first available
     return addrset[0][4][0]
+
+
+def is_trusted_inner(peer_host: str, peer_node_id: bytes32, trusted_peers: Dict, testing: bool) -> bool:
+    if trusted_peers is None:
+        return False
+    if not testing and peer_host == "127.0.0.1":
+        return True
+    if peer_node_id.hex() not in trusted_peers:
+        return False
+
+    return True

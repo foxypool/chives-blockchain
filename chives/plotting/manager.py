@@ -18,8 +18,6 @@ from chives.plotting.util import (
     PlotRefreshEvents,
     get_plot_filenames,
     parse_plot_info,
-    stream_plot_info_pk,
-    stream_plot_info_ph,
 )
 from chives.util.generator_tools import list_to_batches
 from chives.util.ints import uint16
@@ -34,16 +32,16 @@ log = logging.getLogger(__name__)
 CURRENT_VERSION: uint16 = uint16(0)
 
 
-@dataclass(frozen=True)
 @streamable
+@dataclass(frozen=True)
 class CacheEntry(Streamable):
     pool_public_key: Optional[G1Element]
     pool_contract_puzzle_hash: Optional[bytes32]
     plot_public_key: G1Element
 
 
-@dataclass(frozen=True)
 @streamable
+@dataclass(frozen=True)
 class DiskCache(Streamable):
     version: uint16
     data: List[Tuple[bytes32, CacheEntry]]
@@ -125,7 +123,6 @@ class PlotManager:
     pool_public_keys: List[G1Element]
     cache: Cache
     match_str: Optional[str]
-    show_memo: bool
     open_no_key_filenames: bool
     last_refresh_time: float
     refresh_parameter: PlotsRefreshParameter
@@ -134,13 +131,13 @@ class PlotManager:
     _refresh_thread: Optional[threading.Thread]
     _refreshing_enabled: bool
     _refresh_callback: Callable
+    _initial: bool
 
     def __init__(
         self,
         root_path: Path,
         refresh_callback: Callable,
         match_str: Optional[str] = None,
-        show_memo: bool = False,
         open_no_key_filenames: bool = False,
         refresh_parameter: PlotsRefreshParameter = PlotsRefreshParameter(),
     ):
@@ -154,7 +151,6 @@ class PlotManager:
         self.pool_public_keys = []
         self.cache = Cache(self.root_path.resolve() / "cache" / "plot_manager.dat")
         self.match_str = match_str
-        self.show_memo = show_memo
         self.open_no_key_filenames = open_no_key_filenames
         self.last_refresh_time = 0
         self.refresh_parameter = refresh_parameter
@@ -163,6 +159,7 @@ class PlotManager:
         self._refresh_thread = None
         self._refreshing_enabled = False
         self._refresh_callback = refresh_callback  # type: ignore
+        self._initial = True
 
     def __enter__(self):
         self._lock.acquire()
@@ -170,12 +167,24 @@ class PlotManager:
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self._lock.release()
 
+    def reset(self):
+        with self:
+            self.last_refresh_time = time.time()
+            self.plots.clear()
+            self.plot_filename_paths.clear()
+            self.failed_to_open_filenames.clear()
+            self.no_key_filenames.clear()
+            self._initial = True
+
     def set_refresh_callback(self, callback: Callable):
         self._refresh_callback = callback  # type: ignore
 
     def set_public_keys(self, farmer_public_keys: List[G1Element], pool_public_keys: List[G1Element]):
         self.farmer_public_keys = farmer_public_keys
         self.pool_public_keys = pool_public_keys
+
+    def initial_refresh(self):
+        return self._initial
 
     def public_keys_available(self):
         return len(self.farmer_public_keys) and len(self.pool_public_keys)
@@ -195,11 +204,11 @@ class PlotManager:
     def needs_refresh(self) -> bool:
         return time.time() - self.last_refresh_time > float(self.refresh_parameter.interval_seconds)
 
-    def start_refreshing(self):
+    def start_refreshing(self, sleep_interval_ms: int = 1000):
         self._refreshing_enabled = True
         if self._refresh_thread is None or not self._refresh_thread.is_alive():
             self.cache.load()
-            self._refresh_thread = threading.Thread(target=self._refresh_task)
+            self._refresh_thread = threading.Thread(target=self._refresh_task, args=(sleep_interval_ms,))
             self._refresh_thread.start()
 
     def stop_refreshing(self):
@@ -212,90 +221,102 @@ class PlotManager:
         log.debug("trigger_refresh")
         self.last_refresh_time = 0
 
-    def _refresh_task(self):
+    def _refresh_task(self, sleep_interval_ms: int):
         while self._refreshing_enabled:
+            try:
+                while not self.needs_refresh() and self._refreshing_enabled:
+                    time.sleep(sleep_interval_ms / 1000.0)
 
-            while not self.needs_refresh() and self._refreshing_enabled:
-                time.sleep(1)
-
-            if not self._refreshing_enabled:
-                return
-
-            plot_filenames: Dict[Path, List[Path]] = get_plot_filenames(self.root_path)
-            plot_directories: Set[Path] = set(plot_filenames.keys())
-            plot_paths: List[Path] = []
-            for paths in plot_filenames.values():
-                plot_paths += paths
-
-            total_result: PlotRefreshResult = PlotRefreshResult()
-            total_size = len(plot_paths)
-
-            self._refresh_callback(PlotRefreshEvents.started, PlotRefreshResult(remaining=total_size))
-
-            # First drop all plots we have in plot_filename_paths but not longer in the filesystem or set in config
-            def plot_removed(test_path: Path):
-                return not test_path.exists() or test_path.parent not in plot_directories
-
-            filenames_to_remove: List[str] = []
-            for plot_filename, paths_entry in self.plot_filename_paths.items():
-                loaded_path, duplicated_paths = paths_entry
-                loaded_plot = Path(loaded_path) / Path(plot_filename)
-                if plot_removed(loaded_plot):
-                    filenames_to_remove.append(plot_filename)
-                    if loaded_plot in self.plots:
-                        del self.plots[loaded_plot]
-                    total_result.removed += 1
-                    # No need to check the duplicates here since we drop the whole entry
-                    continue
-
-                paths_to_remove: List[str] = []
-                for path in duplicated_paths:
-                    if plot_removed(Path(path) / Path(plot_filename)):
-                        paths_to_remove.append(path)
-                        total_result.removed += 1
-                for path in paths_to_remove:
-                    duplicated_paths.remove(path)
-
-            for filename in filenames_to_remove:
-                del self.plot_filename_paths[filename]
-
-            for remaining, batch in list_to_batches(plot_paths, self.refresh_parameter.batch_size):
-                batch_result: PlotRefreshResult = self.refresh_batch(batch, plot_directories)
                 if not self._refreshing_enabled:
-                    self.log.debug("refresh_plots: Aborted")
-                    break
-                # Set the remaining files since `refresh_batch()` doesn't know them but we want to report it
-                batch_result.remaining = remaining
-                total_result.loaded += batch_result.loaded
-                total_result.processed += batch_result.processed
-                total_result.duration += batch_result.duration
+                    return
 
-                self._refresh_callback(PlotRefreshEvents.batch_processed, batch_result)
-                if remaining == 0:
-                    break
-                batch_sleep = self.refresh_parameter.batch_sleep_milliseconds
-                self.log.debug(f"refresh_plots: Sleep {batch_sleep} milliseconds")
-                time.sleep(float(batch_sleep) / 1000.0)
+                plot_filenames: Dict[Path, List[Path]] = get_plot_filenames(self.root_path)
+                plot_directories: Set[Path] = set(plot_filenames.keys())
+                plot_paths: Set[Path] = set()
+                for paths in plot_filenames.values():
+                    plot_paths.update(paths)
 
-            if self._refreshing_enabled:
-                self._refresh_callback(PlotRefreshEvents.done, total_result)
+                total_result: PlotRefreshResult = PlotRefreshResult()
+                total_size = len(plot_paths)
 
-            # Cleanup unused cache
-            available_ids = set([plot_info.prover.get_id() for plot_info in self.plots.values()])
-            invalid_cache_keys = [plot_id for plot_id in self.cache.keys() if plot_id not in available_ids]
-            self.cache.remove(invalid_cache_keys)
-            self.log.debug(f"_refresh_task: cached entries removed: {len(invalid_cache_keys)}")
+                self._refresh_callback(PlotRefreshEvents.started, PlotRefreshResult(remaining=total_size))
 
-            if self.cache.changed():
-                self.cache.save()
+                # First drop all plots we have in plot_filename_paths but not longer in the filesystem or set in config
+                for path in list(self.failed_to_open_filenames.keys()):
+                    if path not in plot_paths:
+                        del self.failed_to_open_filenames[path]
 
-            self.last_refresh_time = time.time()
+                for path in self.no_key_filenames.copy():
+                    if path not in plot_paths:
+                        self.no_key_filenames.remove(path)
 
-            self.log.debug(
-                f"_refresh_task: total_result.loaded {total_result.loaded}, "
-                f"total_result.removed {total_result.removed}, "
-                f"total_duration {total_result.duration:.2f} seconds"
-            )
+                filenames_to_remove: List[str] = []
+                for plot_filename, paths_entry in self.plot_filename_paths.items():
+                    loaded_path, duplicated_paths = paths_entry
+                    loaded_plot = Path(loaded_path) / Path(plot_filename)
+                    if loaded_plot not in plot_paths:
+                        filenames_to_remove.append(plot_filename)
+                        with self:
+                            if loaded_plot in self.plots:
+                                del self.plots[loaded_plot]
+                        total_result.removed.append(loaded_plot)
+                        # No need to check the duplicates here since we drop the whole entry
+                        continue
+
+                    paths_to_remove: List[str] = []
+                    for path_str in duplicated_paths:
+                        loaded_plot = Path(path_str) / Path(plot_filename)
+                        if loaded_plot not in plot_paths:
+                            paths_to_remove.append(path_str)
+                    for path_str in paths_to_remove:
+                        duplicated_paths.remove(path_str)
+
+                for filename in filenames_to_remove:
+                    del self.plot_filename_paths[filename]
+
+                for remaining, batch in list_to_batches(list(plot_paths), self.refresh_parameter.batch_size):
+                    batch_result: PlotRefreshResult = self.refresh_batch(batch, plot_directories)
+                    if not self._refreshing_enabled:
+                        self.log.debug("refresh_plots: Aborted")
+                        break
+                    # Set the remaining files since `refresh_batch()` doesn't know them but we want to report it
+                    batch_result.remaining = remaining
+                    total_result.loaded += batch_result.loaded
+                    total_result.processed += batch_result.processed
+                    total_result.duration += batch_result.duration
+
+                    self._refresh_callback(PlotRefreshEvents.batch_processed, batch_result)
+                    if remaining == 0:
+                        break
+                    batch_sleep = self.refresh_parameter.batch_sleep_milliseconds
+                    self.log.debug(f"refresh_plots: Sleep {batch_sleep} milliseconds")
+                    time.sleep(float(batch_sleep) / 1000.0)
+
+                if self._refreshing_enabled:
+                    self._refresh_callback(PlotRefreshEvents.done, total_result)
+
+                # Reset the initial refresh indication
+                self._initial = False
+
+                # Cleanup unused cache
+                available_ids = set([plot_info.prover.get_id() for plot_info in self.plots.values()])
+                invalid_cache_keys = [plot_id for plot_id in self.cache.keys() if plot_id not in available_ids]
+                self.cache.remove(invalid_cache_keys)
+                self.log.debug(f"_refresh_task: cached entries removed: {len(invalid_cache_keys)}")
+
+                if self.cache.changed():
+                    self.cache.save()
+
+                self.last_refresh_time = time.time()
+
+                self.log.debug(
+                    f"_refresh_task: total_result.loaded {len(total_result.loaded)}, "
+                    f"total_result.removed {len(total_result.removed)}, "
+                    f"total_duration {total_result.duration:.2f} seconds"
+                )
+            except Exception as e:
+                log.error(f"_refresh_callback raised: {e} with the traceback: {traceback.format_exc()}")
+                self.reset()
 
     def refresh_batch(self, plot_paths: List[Path], plot_directories: Set[Path]) -> PlotRefreshResult:
         start_time: float = time.time()
@@ -380,6 +401,11 @@ class PlotManager:
                         if not self.open_no_key_filenames:
                             return None
 
+                    # If a plot is in `no_key_filenames` the keys were missing in earlier refresh cycles. We can remove
+                    # the current plot from that list if its in there since we passed the key checks above.
+                    if file_path in self.no_key_filenames:
+                        self.no_key_filenames.remove(file_path)
+
                     local_sk = master_sk_to_local_sk(local_master_sk)
 
                     plot_public_key: G1Element = ProofOfSpace.generate_plot_public_key(
@@ -409,7 +435,7 @@ class PlotManager:
                 )
 
                 with counter_lock:
-                    result.loaded += 1
+                    result.loaded.append(new_plot_info)
 
                 if file_path in self.failed_to_open_filenames:
                     del self.failed_to_open_filenames[file_path]
@@ -420,16 +446,6 @@ class PlotManager:
                 self.failed_to_open_filenames[file_path] = int(time.time())
                 return None
             log.info(f"Found plot {file_path} of size {new_plot_info.prover.get_size()}")
-
-            if self.show_memo:
-                plot_memo: bytes32
-                if pool_contract_puzzle_hash is None:
-                    plot_memo = stream_plot_info_pk(pool_public_key, farmer_public_key, local_master_sk)
-                else:
-                    plot_memo = stream_plot_info_ph(pool_contract_puzzle_hash, farmer_public_key, local_master_sk)
-                plot_memo_str: str = plot_memo.hex()
-                log.info(f"Memo: {plot_memo_str}")
-
             return new_plot_info
 
         with self, ThreadPoolExecutor() as executor:
@@ -442,8 +458,8 @@ class PlotManager:
         result.duration = time.time() - start_time
 
         self.log.debug(
-            f"refresh_batch: loaded {result.loaded}, "
-            f"removed {result.removed}, processed {result.processed}, "
+            f"refresh_batch: loaded {len(result.loaded)}, "
+            f"removed {len(result.removed)}, processed {result.processed}, "
             f"remaining {result.remaining}, batch_size {self.refresh_parameter.batch_size}, "
             f"duration: {result.duration:.2f} seconds"
         )

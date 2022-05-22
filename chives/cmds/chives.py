@@ -9,12 +9,14 @@ from chives.cmds.keys import keys_cmd
 from chives.cmds.netspace import netspace_cmd
 from chives.cmds.passphrase import passphrase_cmd
 from chives.cmds.plots import plots_cmd
+from chives.cmds.rpc import rpc_cmd
 from chives.cmds.show import show_cmd
 from chives.cmds.start import start_cmd
 from chives.cmds.stop import stop_cmd
 from chives.cmds.wallet import wallet_cmd
 from chives.cmds.plotnft import plotnft_cmd
 from chives.cmds.plotters import plotters_cmd
+from chives.cmds.db import db_cmd
 from chives.util.default_root import DEFAULT_KEYS_ROOT_PATH, DEFAULT_ROOT_PATH
 from chives.util.keychain import (
     Keychain,
@@ -121,7 +123,7 @@ def run_daemon_cmd(ctx: click.Context, wait_for_unlock: bool) -> None:
 
     wait_for_unlock = wait_for_unlock and Keychain.is_keyring_locked()
 
-    asyncio.get_event_loop().run_until_complete(async_run_daemon(ctx.obj["root_path"], wait_for_unlock=wait_for_unlock))
+    asyncio.run(async_run_daemon(ctx.obj["root_path"], wait_for_unlock=wait_for_unlock))
 
 
 cli.add_command(keys_cmd)
@@ -130,12 +132,14 @@ cli.add_command(wallet_cmd)
 cli.add_command(plotnft_cmd)
 cli.add_command(configure_cmd)
 cli.add_command(init_cmd)
+cli.add_command(rpc_cmd)
 cli.add_command(show_cmd)
 cli.add_command(start_cmd)
 cli.add_command(stop_cmd)
 cli.add_command(netspace_cmd)
 cli.add_command(farm_cmd)
 cli.add_command(plotters_cmd)
+cli.add_command(db_cmd)
 
 if supports_keyring_passphrase():
     cli.add_command(passphrase_cmd)

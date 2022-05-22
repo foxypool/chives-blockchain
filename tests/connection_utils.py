@@ -15,13 +15,12 @@ from chives.ssl.create_ssl import generate_ca_signed_cert
 from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.types.peer_info import PeerInfo
 from chives.util.ints import uint16
-from tests.setup_nodes import self_hostname
 from tests.time_out_assert import time_out_assert
 
 log = logging.getLogger(__name__)
 
 
-async def disconnect_all_and_reconnect(server: ChivesServer, reconnect_to: ChivesServer) -> bool:
+async def disconnect_all_and_reconnect(server: ChivesServer, reconnect_to: ChivesServer, self_hostname: str) -> bool:
     cons = list(server.all_connections.values())[:]
     for con in cons:
         await con.close()
@@ -29,7 +28,7 @@ async def disconnect_all_and_reconnect(server: ChivesServer, reconnect_to: Chive
 
 
 async def add_dummy_connection(
-    server: ChivesServer, dummy_port: int, type: NodeType = NodeType.FULL_NODE
+    server: ChivesServer, self_hostname: str, dummy_port: int, type: NodeType = NodeType.FULL_NODE
 ) -> Tuple[asyncio.Queue, bytes32]:
     timeout = aiohttp.ClientTimeout(total=10)
     session = aiohttp.ClientSession(timeout=timeout)
@@ -66,7 +65,7 @@ async def add_dummy_connection(
     return incoming_queue, peer_id
 
 
-async def connect_and_get_peer(server_1: ChivesServer, server_2: ChivesServer) -> WSChivesConnection:
+async def connect_and_get_peer(server_1: ChivesServer, server_2: ChivesServer, self_hostname: str) -> WSChivesConnection:
     """
     Connect server_2 to server_1, and get return the connection in server_1.
     """

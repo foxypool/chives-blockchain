@@ -27,11 +27,11 @@ def get_madmax_package_path() -> Path:
     return Path(os.path.dirname(sys.executable)) / "madmax"
 
 
-def get_madmax_executable_path_for_ksize(plotters_root_path: Path, ksize: int = 29) -> Path:
+def get_madmax_executable_path_for_ksize(plotters_root_path: Path, ksize: int = 32) -> Path:
     madmax_dir: Path = get_madmax_package_path()
     madmax_exec: str = "chia_plot"
-#    if ksize > 32:
-#        madmax_exec += "_k34"  # Use the chia_plot_k34 executable for k-sizes > 32
+    # if ksize > 32:
+    #     madmax_exec += "_k34"  # Use the chia_plot_k34 executable for k-sizes > 32
     if sys.platform in ["win32", "cygwin"]:
         madmax_exec += ".exe"
     if not madmax_dir.exists():
@@ -45,6 +45,7 @@ def get_madmax_install_info(plotters_root_path: Path) -> Optional[Dict[str, Any]
     supported: bool = is_madmax_supported()
 
     if get_madmax_executable_path_for_ksize(plotters_root_path).exists():
+        version = None
         try:
             proc = run_command(
                 [os.fspath(get_madmax_executable_path_for_ksize(plotters_root_path)), "--version"],
@@ -54,7 +55,8 @@ def get_madmax_install_info(plotters_root_path: Path) -> Optional[Dict[str, Any]
             )
             version = proc.stdout.strip()
         except Exception as e:
-            print(f"Failed to determine madmax version: {e}")
+            tb = traceback.format_exc()
+            log.error(f"Failed to determine madmax version: {e} {tb}")
 
         if version is not None:
             installed = True
@@ -109,7 +111,7 @@ def install_madmax(plotters_root_path: Path):
             [
                 "git",
                 "clone",
-                "https://github.com/Chia-Network/chia-plotter-madmax.git",
+                "https://github.com/chia-network/chia-plotter-madmax.git",
                 MADMAX_PLOTTER_DIR,
             ],
             "Could not clone madmax git repository",
@@ -178,7 +180,7 @@ def plot_madmax(args, chives_root_path: Path, plotters_root_path: Path):
         except Exception as e:
             print(f"Exception while installing madmax plotter: {e}")
             return
-    plot_keys = asyncio.get_event_loop().run_until_complete(
+    plot_keys = asyncio.run(
         resolve_plot_keys(
             None if args.farmerkey == b"" else args.farmerkey.hex(),
             None,
@@ -223,11 +225,10 @@ def plot_madmax(args, chives_root_path: Path, plotters_root_path: Path):
     call_args.append(str(args.rmulti2))
     call_args.append("-k")
     call_args.append(str(args.size))
-    call_args.append("-x")
+    call_args.append("-x") # Specify port for Chives
     call_args.append("9699")
     try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_plotter(call_args, progress))
+        asyncio.run(run_plotter(call_args, progress))
     except Exception as e:
         print(f"Exception while plotting: {type(e)} {e}")
         print(f"Traceback: {traceback.format_exc()}")

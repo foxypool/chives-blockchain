@@ -8,12 +8,10 @@ from chives.types.blockchain_format.program import Program, SerializedProgram
 wallet_program_files = set(
     [
         "chives/wallet/puzzles/calculate_synthetic_public_key.clvm",
-        "chives/wallet/puzzles/cc.clvm",
-        "chives/wallet/puzzles/chiveslisp_deserialisation.clvm",
+        "chives/wallet/puzzles/cat.clvm",
+        "chives/wallet/puzzles/chialisp_deserialisation.clvm",
         "chives/wallet/puzzles/rom_bootstrap_generator.clvm",
         "chives/wallet/puzzles/generator_for_single_coin.clvm",
-        "chives/wallet/puzzles/genesis-by-coin-id-with-0.clvm",
-        "chives/wallet/puzzles/genesis-by-puzzle-hash-with-0.clvm",
         "chives/wallet/puzzles/lock.inner.puzzle.clvm",
         "chives/wallet/puzzles/p2_conditions.clvm",
         "chives/wallet/puzzles/p2_delegated_conditions.clvm",
@@ -37,6 +35,11 @@ wallet_program_files = set(
         "chives/wallet/puzzles/pool_member_innerpuz.clvm",
         "chives/wallet/puzzles/singleton_launcher.clvm",
         "chives/wallet/puzzles/p2_singleton_or_delayed_puzhash.clvm",
+        "chives/wallet/puzzles/genesis_by_puzzle_hash.clvm",
+        "chives/wallet/puzzles/everything_with_signature.clvm",
+        "chives/wallet/puzzles/delegated_tail.clvm",
+        "chives/wallet/puzzles/settlement_payments.clvm",
+        "chives/wallet/puzzles/genesis_by_coin_id.clvm",
     ]
 )
 

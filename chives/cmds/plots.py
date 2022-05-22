@@ -5,6 +5,8 @@ from pathlib import Path
 
 import click
 
+from chives.plotting.util import add_plot_directory, validate_plot_size
+
 DEFAULT_STRIPE_SIZE = 65536
 log = logging.getLogger(__name__)
 
@@ -37,8 +39,8 @@ def plots_cmd(ctx: click.Context):
 
 
 @plots_cmd.command("create", short_help="Create plots")
-@click.option("-k", "--size", help="Plot size", type=int, default=29, show_default=True)
-@click.option("--override-k", help="Force size smaller than 29", default=False, show_default=True, is_flag=True)
+@click.option("-k", "--size", help="Plot size", type=int, default=32, show_default=True)
+@click.option("--override-k", help="Force size smaller than 32", default=False, show_default=True, is_flag=True)
 @click.option("-n", "--num", help="Number of plots or challenges", type=int, default=1, show_default=True)
 @click.option("-b", "--buffer", help="Megabytes for sort/plot buffer", type=int, default=3389, show_default=True)
 @click.option("-r", "--num_threads", help="Number of threads to use", type=int, default=2, show_default=True)
@@ -128,29 +130,29 @@ def create_cmd(
             self.plotid = plotid
             self.memo = memo
             self.nobitfield = nobitfield
-            self.exclude_final_dir = exclude_final_dir
 
-    if size < 29 and not override_k:
-        print("k=29 is the minimum size for farming.")
-        print("If you are testing and you want to use smaller size please add the --override-k flag.")
-        sys.exit(1)
-    elif size < 25 and override_k:
-        print("Error: The minimum k size allowed from the cli is k=25.")
+    root_path: Path = ctx.obj["root_path"]
+    try:
+        validate_plot_size(root_path, size, override_k)
+    except ValueError as e:
+        print(e)
         sys.exit(1)
 
-    plot_keys = asyncio.get_event_loop().run_until_complete(
+    plot_keys = asyncio.run(
         resolve_plot_keys(
             farmer_public_key,
             alt_fingerprint,
             pool_public_key,
             pool_contract_address,
-            ctx.obj["root_path"],
+            root_path,
             log,
             connect_to_daemon,
         )
     )
 
-    asyncio.get_event_loop().run_until_complete(create_plots(Params(), plot_keys, ctx.obj["root_path"]))
+    asyncio.run(create_plots(Params(), plot_keys))
+    if not exclude_final_dir:
+        add_plot_directory(root_path, final_dir)
 
 
 @plots_cmd.command("check", short_help="Checks plots")

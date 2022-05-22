@@ -11,7 +11,7 @@ import time
 from argparse import Namespace
 from dataclasses import replace
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Any
+from typing import Callable, Dict, List, Optional, Tuple, Any, Union
 
 from blspy import AugSchemeMPL, G1Element, G2Element, PrivateKey
 from chiabip158 import PyBIP158
@@ -27,6 +27,7 @@ from chives.util.errors import Err
 from chives.full_node.generator import setup_generator_args
 from chives.full_node.mempool_check_conditions import GENERATOR_MOD
 from chives.plotting.create_plots import create_plots, PlotKeys
+from chives.plotting.util import add_plot_directory
 from chives.consensus.block_creation import unfinished_block_to_full_block
 from chives.consensus.block_record import BlockRecord
 from chives.consensus.block_rewards import calculate_base_farmer_reward, calculate_pool_reward
@@ -49,7 +50,7 @@ from chives.consensus.vdf_info_computation import get_signage_point_vdf_info
 from chives.full_node.signage_point import SignagePoint
 from chives.plotting.util import PlotsRefreshParameter, PlotRefreshResult, PlotRefreshEvents, parse_plot_info
 from chives.plotting.manager import PlotManager
-from chives.server.server import ssl_context_for_server
+from chives.server.server import ssl_context_for_client
 from chives.types.blockchain_format.classgroup import ClassgroupElement
 from chives.types.blockchain_format.coin import Coin, hash_coin_list
 from chives.types.blockchain_format.foliage import Foliage, FoliageBlockData, FoliageTransactionBlock, TransactionsInfo
@@ -66,6 +67,7 @@ from chives.types.blockchain_format.slots import (
 )
 from chives.types.blockchain_format.sub_epoch_summary import SubEpochSummary
 from chives.types.blockchain_format.vdf import VDFInfo, VDFProof
+from chives.types.condition_opcodes import ConditionOpcode
 from chives.types.end_of_slot_bundle import EndOfSubSlotBundle
 from chives.types.full_block import FullBlock
 from chives.types.generator_types import BlockGenerator, CompressorArg
@@ -73,8 +75,8 @@ from chives.types.spend_bundle import SpendBundle
 from chives.types.unfinished_block import UnfinishedBlock
 from chives.util.bech32m import encode_puzzle_hash
 from chives.util.block_cache import BlockCache
-from chives.util.condition_tools import ConditionOpcode
-from chives.util.config import load_config, save_config
+from chives.util.config import load_config, lock_config, save_config
+from chives.util.default_root import DEFAULT_ROOT_PATH
 from chives.util.hash import std_hash
 from chives.util.ints import uint8, uint16, uint32, uint64, uint128
 from chives.util.keychain import Keychain, bytes_to_mnemonic
@@ -82,8 +84,10 @@ from chives.util.merkle_set import MerkleSet
 from chives.util.prev_transaction_block import get_prev_transaction_block
 from chives.util.path import mkdir
 from chives.util.vdf_prover import get_vdf_info_and_proof
-from tests.time_out_assert import time_out_assert
+from tests.time_out_assert import time_out_assert_custom_interval
 from tests.wallet_tools import WalletTool
+from tests.util.socket import find_available_listen_port
+from tests.util.ssl_certs import get_next_nodes_certs_and_keys, get_next_private_ca_cert_and_key
 from chives.wallet.derive_keys import (
     master_sk_to_farmer_sk,
     master_sk_to_local_sk,
@@ -95,7 +99,7 @@ test_constants = DEFAULT_CONSTANTS.replace(
     **{
         "MIN_PLOT_SIZE": 18,
         "MIN_BLOCKS_PER_CHALLENGE_BLOCK": 12,
-        "DIFFICULTY_STARTING": 2 ** 12,
+        "DIFFICULTY_STARTING": 2 ** 10,
         "DISCRIMINANT_SIZE_BITS": 16,
         "SUB_EPOCH_BLOCKS": 170,
         "WEIGHT_PROOF_THRESHOLD": 2,
@@ -142,7 +146,11 @@ class BlockTools:
         self.local_keychain = keychain
 
         create_default_chives_config(root_path)
-        create_all_ssl(root_path)
+        create_all_ssl(
+            root_path,
+            private_ca_crt_and_key=get_next_private_ca_cert_and_key(),
+            node_certs_and_keys=get_next_nodes_certs_and_keys(),
+        )
 
         self.local_sk_cache: Dict[bytes32, Tuple[PrivateKey, Any]] = {}
         self._config = load_config(self.root_path, "config.yaml")
@@ -150,7 +158,12 @@ class BlockTools:
         self._config["selected_network"] = "testnet0"
         for service in ["harvester", "farmer", "full_node", "wallet", "introducer", "timelord", "pool"]:
             self._config[service]["selected_network"] = "testnet0"
-        save_config(self.root_path, "config.yaml", self._config)
+
+        # some tests start the daemon, make sure it's on a free port
+        self._config["daemon_port"] = find_available_listen_port("BlockTools daemon")
+
+        with lock_config(self.root_path, "config.yaml"):
+            save_config(self.root_path, "config.yaml", self._config)
         overrides = self._config["network_overrides"]["constants"][self._config["selected_network"]]
         updated_constants = constants.replace_str_to_bytes(**overrides)
         if const_dict is not None:
@@ -163,6 +176,7 @@ class BlockTools:
         mkdir(self.plot_dir)
         mkdir(self.temp_dir)
         self.expected_plots: Dict[bytes32, Path] = {}
+        self.created_plots: int = 0
         self.total_result = PlotRefreshResult()
 
         def test_callback(event: PlotRefreshEvents, update_result: PlotRefreshResult):
@@ -175,7 +189,7 @@ class BlockTools:
                 self.total_result.processed += update_result.processed
                 self.total_result.duration += update_result.duration
                 assert update_result.remaining == len(self.expected_plots) - self.total_result.processed
-                assert update_result.loaded <= self.refresh_parameter.batch_size
+                assert len(update_result.loaded) <= self.refresh_parameter.batch_size
 
             if event == PlotRefreshEvents.done:
                 assert self.total_result.loaded == update_result.loaded
@@ -227,33 +241,53 @@ class BlockTools:
         overrides = self._config["network_overrides"]["constants"][self._config["selected_network"]]
         updated_constants = self.constants.replace_str_to_bytes(**overrides)
         self.constants = updated_constants
-        save_config(self.root_path, "config.yaml", self._config)
+        with lock_config(self.root_path, "config.yaml"):
+            save_config(self.root_path, "config.yaml", self._config)
+
+    def add_plot_directory(self, path: Path) -> None:
+        self._config = add_plot_directory(self.root_path, str(path))
 
     async def setup_plots(self):
-        assert len(self.expected_plots) == 0
+        self.add_plot_directory(self.plot_dir)
+        assert self.created_plots == 0
         # OG Plots
         for i in range(15):
             await self.new_plot()
         # Pool Plots
         for i in range(5):
             await self.new_plot(self.pool_ph)
+        # Some plots with keys that are not in the keychain
+        for i in range(3):
+            await self.new_plot(
+                path=self.plot_dir / "not_in_keychain",
+                plot_keys=PlotKeys(G1Element(), G1Element(), None),
+                exclude_plots=True,
+            )
+
         await self.refresh_plots()
 
     async def new_plot(
-        self, pool_contract_puzzle_hash: Optional[bytes32] = None, path: Path = None
+        self,
+        pool_contract_puzzle_hash: Optional[bytes32] = None,
+        path: Path = None,
+        tmp_dir: Path = None,
+        plot_keys: Optional[PlotKeys] = None,
+        exclude_plots: bool = False,
     ) -> Optional[bytes32]:
         final_dir = self.plot_dir
         if path is not None:
             final_dir = path
             mkdir(final_dir)
+        if tmp_dir is None:
+            tmp_dir = self.temp_dir
         args = Namespace()
         # Can't go much lower than 20, since plots start having no solutions and more buggy
-        args.size = 22
+        args.size = 20
         # Uses many plots for testing, in order to guarantee proofs of space at every height
         args.num = 1
         args.buffer = 100
-        args.tmp_dir = self.temp_dir
-        args.tmp2_dir = final_dir
+        args.tmp_dir = tmp_dir
+        args.tmp2_dir = tmp_dir
         args.final_dir = final_dir
         args.plotid = None
         args.memo = None
@@ -264,25 +298,26 @@ class BlockTools:
         args.exclude_final_dir = False
         args.list_duplicates = False
         try:
-            pool_pk: Optional[G1Element] = None
-            pool_address: Optional[str] = None
-            if pool_contract_puzzle_hash is None:
-                pool_pk = self.pool_pk
-            else:
-                pool_address = encode_puzzle_hash(pool_contract_puzzle_hash, "xcc")
+            if plot_keys is None:
+                pool_pk: Optional[G1Element] = None
+                pool_address: Optional[str] = None
+                if pool_contract_puzzle_hash is None:
+                    pool_pk = self.pool_pk
+                else:
+                    pool_address = encode_puzzle_hash(pool_contract_puzzle_hash, "xcc")
 
-            keys = PlotKeys(self.farmer_pk, pool_pk, pool_address)
+                plot_keys = PlotKeys(self.farmer_pk, pool_pk, pool_address)
             # No datetime in the filename, to get deterministic filenames and not re-plot
             created, existed = await create_plots(
                 args,
-                keys,
-                self.root_path,
+                plot_keys,
                 use_datetime=False,
-                test_private_keys=[AugSchemeMPL.key_gen(std_hash(len(self.expected_plots).to_bytes(2, "big")))],
+                test_private_keys=[AugSchemeMPL.key_gen(std_hash(self.created_plots.to_bytes(2, "big")))],
             )
+            self.created_plots += 1
 
             plot_id_new: Optional[bytes32] = None
-            path_new: Path = Path()
+            path_new: Optional[Path] = None
 
             if len(created):
                 assert len(existed) == 0
@@ -291,18 +326,16 @@ class BlockTools:
             if len(existed):
                 assert len(created) == 0
                 plot_id_new, path_new = list(existed.items())[0]
+            assert plot_id_new is not None
+            assert path_new is not None
 
-            self.expected_plots[plot_id_new] = path_new
-
-            # create_plots() updates plot_directories. Ensure we refresh our config to reflect the updated value
-            self._config["harvester"]["plot_directories"] = load_config(self.root_path, "config.yaml", "harvester")[
-                "plot_directories"
-            ]
+            if not exclude_plots:
+                self.expected_plots[plot_id_new] = path_new
 
             return plot_id_new
 
         except KeyboardInterrupt:
-            shutil.rmtree(self.plot_dir, ignore_errors=True)
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
             sys.exit(1)
 
     async def refresh_plots(self):
@@ -311,8 +344,8 @@ class BlockTools:
         )  # Make sure we have at least some batches + a remainder
         self.plot_manager.trigger_refresh()
         assert self.plot_manager.needs_refresh()
-        self.plot_manager.start_refreshing()
-        await time_out_assert(10, self.plot_manager.needs_refresh, value=False)
+        self.plot_manager.start_refreshing(sleep_interval_ms=1)
+        await time_out_assert_custom_interval(10, 0.001, self.plot_manager.needs_refresh, value=False)
         self.plot_manager.stop_refreshing()
         assert not self.plot_manager.needs_refresh()
 
@@ -326,12 +359,12 @@ class BlockTools:
     def config(self) -> Dict:
         return copy.deepcopy(self._config)
 
-    def get_daemon_ssl_context(self) -> Optional[ssl.SSLContext]:
+    def get_daemon_ssl_context(self) -> ssl.SSLContext:
         crt_path = self.root_path / self.config["daemon_ssl"]["private_crt"]
         key_path = self.root_path / self.config["daemon_ssl"]["private_key"]
         ca_cert_path = self.root_path / self.config["private_ssl_ca"]["crt"]
         ca_key_path = self.root_path / self.config["private_ssl_ca"]["key"]
-        return ssl_context_for_server(ca_cert_path, ca_key_path, crt_path, key_path)
+        return ssl_context_for_client(ca_cert_path, ca_key_path, crt_path, key_path)
 
     def get_plot_signature(self, m: bytes32, plot_pk: G1Element) -> G2Element:
         """
@@ -386,6 +419,7 @@ class BlockTools:
         self,
         num_blocks: int,
         block_list_input: List[FullBlock] = None,
+        *,
         farmer_reward_puzzle_hash: Optional[bytes32] = None,
         pool_reward_puzzle_hash: Optional[bytes32] = None,
         transaction_data: Optional[SpendBundle] = None,
@@ -394,12 +428,13 @@ class BlockTools:
         force_overflow: bool = False,
         skip_slots: int = 0,  # Force at least this number of empty slots before the first SB
         guarantee_transaction_block: bool = False,  # Force that this block must be a tx block
+        keep_going_until_tx_block: bool = False,  # keep making new blocks until we find a tx block
         normalized_to_identity_cc_eos: bool = False,
         normalized_to_identity_icc_eos: bool = False,
         normalized_to_identity_cc_sp: bool = False,
         normalized_to_identity_cc_ip: bool = False,
         current_time: bool = False,
-        previous_generator: CompressorArg = None,
+        previous_generator: Optional[Union[CompressorArg, List[uint32]]] = None,
         genesis_timestamp: Optional[uint64] = None,
         force_plot_id: Optional[bytes32] = None,
     ) -> List[FullBlock]:
@@ -438,6 +473,7 @@ class BlockTools:
         if num_blocks == 0:
             return block_list
 
+        blocks: Dict[bytes32, BlockRecord]
         height_to_hash, difficulty, blocks = load_block_list(block_list, constants)
 
         latest_block: BlockRecord = blocks[block_list[-1].header_hash]
@@ -532,7 +568,8 @@ class BlockTools:
                         removals = None
                         if transaction_data_included:
                             transaction_data = None
-                        if transaction_data is not None and not transaction_data_included:
+                            previous_generator = None
+                        if transaction_data is not None:
                             additions = transaction_data.additions()
                             removals = transaction_data.removals()
                         assert start_timestamp is not None
@@ -548,13 +585,16 @@ class BlockTools:
                             else:
                                 pool_target = PoolTarget(self.pool_ph, uint32(0))
 
+                        block_generator: Optional[BlockGenerator]
                         if transaction_data is not None:
-                            if previous_generator is not None:
-                                block_generator: Optional[BlockGenerator] = best_solution_generator_from_template(
+                            if type(previous_generator) is CompressorArg:
+                                block_generator = best_solution_generator_from_template(
                                     previous_generator, transaction_data
                                 )
                             else:
                                 block_generator = simple_solution_generator(transaction_data)
+                                if type(previous_generator) is list:
+                                    block_generator = BlockGenerator(block_generator.program, [], previous_generator)
 
                             aggregate_signature = transaction_data.aggregated_signature
                         else:
@@ -588,11 +628,13 @@ class BlockTools:
                             signage_point,
                             latest_block,
                             seed,
-                            normalized_to_identity_cc_ip,
+                            normalized_to_identity_cc_ip=normalized_to_identity_cc_ip,
                             current_time=current_time,
                         )
                         if block_record.is_transaction_block:
                             transaction_data_included = True
+                            previous_generator = None
+                            keep_going_until_tx_block = False
                         else:
                             if guarantee_transaction_block:
                                 continue
@@ -614,7 +656,7 @@ class BlockTools:
                         latest_block = blocks[full_block.header_hash]
                         finished_sub_slots_at_ip = []
                         num_blocks -= 1
-                        if num_blocks == 0:
+                        if num_blocks <= 0 and not keep_going_until_tx_block:
                             return block_list
 
             # Finish the end of sub-slot and try again next sub-slot
@@ -670,13 +712,14 @@ class BlockTools:
             else:
                 sub_epoch_summary = next_sub_epoch_summary(
                     constants,
-                    BlockCache(blocks, height_to_hash),
+                    BlockCache(blocks, height_to_hash=height_to_hash),
                     latest_block.required_iters,
                     block_list[-1],
                     False,
                 )
                 pending_ses = True
 
+            ses_hash: Optional[bytes32]
             if sub_epoch_summary is not None:
                 ses_hash = sub_epoch_summary.get_hash()
                 new_sub_slot_iters: Optional[uint64] = sub_epoch_summary.new_sub_slot_iters
@@ -752,7 +795,7 @@ class BlockTools:
             removals = None
             if transaction_data_included:
                 transaction_data = None
-            if transaction_data is not None and not transaction_data_included:
+            if transaction_data is not None:
                 additions = transaction_data.additions()
                 removals = transaction_data.removals()
             sub_slots_finished += 1
@@ -813,12 +856,14 @@ class BlockTools:
                             else:
                                 pool_target = PoolTarget(self.pool_ph, uint32(0))
                         if transaction_data is not None:
-                            if previous_generator is not None:
+                            if previous_generator is not None and type(previous_generator) is CompressorArg:
                                 block_generator = best_solution_generator_from_template(
                                     previous_generator, transaction_data
                                 )
                             else:
                                 block_generator = simple_solution_generator(transaction_data)
+                                if type(previous_generator) is list:
+                                    block_generator = BlockGenerator(block_generator.program, [], previous_generator)
                             aggregate_signature = transaction_data.aggregated_signature
                         else:
                             block_generator = None
@@ -858,6 +903,8 @@ class BlockTools:
 
                         if block_record.is_transaction_block:
                             transaction_data_included = True
+                            previous_generator = None
+                            keep_going_until_tx_block = False
                         elif guarantee_transaction_block:
                             continue
                         if pending_ses:
@@ -874,7 +921,7 @@ class BlockTools:
                         blocks_added_this_sub_slot += 1
                         log.info(f"Created block {block_record.height } ov=True, iters " f"{block_record.total_iters}")
                         num_blocks -= 1
-                        if num_blocks == 0:
+                        if num_blocks <= 0 and not keep_going_until_tx_block:
                             return block_list
 
                         blocks[full_block.header_hash] = block_record
@@ -896,7 +943,7 @@ class BlockTools:
     def create_genesis_block(
         self,
         constants: ConsensusConstants,
-        seed: bytes32 = b"",
+        seed: bytes = b"",
         timestamp: Optional[uint64] = None,
         force_overflow: bool = False,
         skip_slots: int = 0,
@@ -1289,7 +1336,7 @@ def finish_block(
 
 def get_challenges(
     constants: ConsensusConstants,
-    blocks: Dict[uint32, BlockRecord],
+    blocks: Dict[bytes32, BlockRecord],
     finished_sub_slots: List[EndOfSubSlotBundle],
     prev_header_hash: Optional[bytes32],
 ) -> Tuple[bytes32, bytes32]:
@@ -1310,7 +1357,12 @@ def get_challenges(
 
 
 def get_plot_dir() -> Path:
-    cache_path = Path(os.path.expanduser(os.getenv("CHIVES_ROOT", "~/.chives/"))) / "test-plots"
+    cache_path = DEFAULT_ROOT_PATH.parent.joinpath("test-plots")
+
+    ci = os.environ.get("CI")
+    if ci is not None and not cache_path.exists():
+        raise Exception(f"Running in CI and expected path not found: {cache_path!r}")
+
     mkdir(cache_path)
     return cache_path
 
@@ -1321,10 +1373,10 @@ def get_plot_tmp_dir():
 
 def load_block_list(
     block_list: List[FullBlock], constants: ConsensusConstants
-) -> Tuple[Dict[uint32, bytes32], uint64, Dict[uint32, BlockRecord]]:
+) -> Tuple[Dict[uint32, bytes32], uint64, Dict[bytes32, BlockRecord]]:
     difficulty = 0
     height_to_hash: Dict[uint32, bytes32] = {}
-    blocks: Dict[uint32, BlockRecord] = {}
+    blocks: Dict[bytes32, BlockRecord] = {}
     for full_block in block_list:
         if full_block.height == 0:
             difficulty = uint64(constants.DIFFICULTY_STARTING)
@@ -1340,6 +1392,7 @@ def load_block_list(
         quality_str = full_block.reward_chain_block.proof_of_space.verify_and_get_quality_string(
             constants, challenge, sp_hash
         )
+        assert quality_str is not None
         required_iters: uint64 = calculate_iterations_quality(
             constants.DIFFICULTY_CONSTANT_FACTOR,
             quality_str,
@@ -1418,7 +1471,7 @@ def get_icc(
 
 def get_full_block_and_block_record(
     constants: ConsensusConstants,
-    blocks: Dict[uint32, BlockRecord],
+    blocks: Dict[bytes32, BlockRecord],
     sub_slot_start_total_iters: uint128,
     signage_point_index: uint8,
     proof_of_space: ProofOfSpace,
@@ -1443,6 +1496,7 @@ def get_full_block_and_block_record(
     signage_point: SignagePoint,
     prev_block: BlockRecord,
     seed: bytes = b"",
+    *,
     overflow_cc_challenge: bytes32 = None,
     overflow_rc_challenge: bytes32 = None,
     normalized_to_identity_cc_ip: bool = False,
@@ -1511,7 +1565,7 @@ def get_full_block_and_block_record(
 def compute_cost_test(generator: BlockGenerator, cost_per_byte: int) -> Tuple[Optional[uint16], uint64]:
     try:
         block_program, block_program_args = setup_generator_args(generator)
-        clvm_cost, result = GENERATOR_MOD.run_safe_with_cost(INFINITE_COST, block_program, block_program_args)
+        clvm_cost, result = GENERATOR_MOD.run_mempool_with_cost(INFINITE_COST, block_program, block_program_args)
         size_cost = len(bytes(generator.program)) * cost_per_byte
         condition_cost = 0
 
@@ -1545,7 +1599,7 @@ def create_test_foliage(
     pool_target: PoolTarget,
     get_plot_signature: Callable[[bytes32, G1Element], G2Element],
     get_pool_signature: Callable[[PoolTarget, Optional[G1Element]], Optional[G2Element]],
-    seed: bytes32 = b"",
+    seed: bytes = b"",
 ) -> Tuple[Foliage, Optional[FoliageTransactionBlock], Optional[TransactionsInfo]]:
     """
     Creates a foliage for a given reward chain block. This may or may not be a tx block. In the case of a tx block,
@@ -1580,14 +1634,14 @@ def create_test_foliage(
 
     random.seed(seed)
     # Use the extension data to create different blocks based on header hash
-    extension_data: bytes32 = random.randint(0, 100000000).to_bytes(32, "big")
+    extension_data: bytes32 = bytes32(random.randint(0, 100000000).to_bytes(32, "big"))
     if prev_block is None:
         height: uint32 = uint32(0)
     else:
         height = uint32(prev_block.height + 1)
 
     # Create filter
-    byte_array_tx: List[bytes32] = []
+    byte_array_tx: List[bytearray] = []
     tx_additions: List[Coin] = []
     tx_removals: List[bytes32] = []
 
@@ -1620,7 +1674,7 @@ def create_test_foliage(
 
         # Calculate the cost of transactions
         if block_generator is not None:
-            generator_block_heights_list = block_generator.block_height_list()
+            generator_block_heights_list = block_generator.block_height_list
             err, cost = compute_cost_test(block_generator, constants.COST_PER_BYTE)
             assert err is None
 
@@ -1749,8 +1803,10 @@ def create_test_foliage(
         assert foliage_transaction_block is not None
 
         foliage_transaction_block_hash: Optional[bytes32] = foliage_transaction_block.get_hash()
+        assert foliage_transaction_block_hash is not None
         foliage_transaction_block_signature: Optional[G2Element] = get_plot_signature(
-            foliage_transaction_block_hash, reward_block_unfinished.proof_of_space.plot_public_key
+            foliage_transaction_block_hash,
+            reward_block_unfinished.proof_of_space.plot_public_key,
         )
         assert foliage_transaction_block_signature is not None
     else:
@@ -1788,7 +1844,7 @@ def create_test_unfinished_block(
     signage_point: SignagePoint,
     timestamp: uint64,
     blocks: BlockchainInterface,
-    seed: bytes32 = b"",
+    seed: bytes = b"",
     block_generator: Optional[BlockGenerator] = None,
     aggregate_sig: G2Element = G2Element(),
     additions: Optional[List[Coin]] = None,
@@ -1837,7 +1893,7 @@ def create_test_unfinished_block(
 
     new_sub_slot: bool = len(finished_sub_slots) > 0
 
-    cc_sp_hash: Optional[bytes32] = slot_cc_challenge
+    cc_sp_hash: bytes32 = slot_cc_challenge
 
     # Only enters this if statement if we are in testing mode (making VDF proofs here)
     if signage_point.cc_vdf is not None:
@@ -1860,7 +1916,10 @@ def create_test_unfinished_block(
                 rc_sp_hash = curr.finished_reward_slot_hashes[-1]
         signage_point = SignagePoint(None, None, None, None)
 
-    cc_sp_signature: Optional[G2Element] = get_plot_signature(cc_sp_hash, proof_of_space.plot_public_key)
+    cc_sp_signature: Optional[G2Element] = get_plot_signature(
+        cc_sp_hash,
+        proof_of_space.plot_public_key,
+    )
     rc_sp_signature: Optional[G2Element] = get_plot_signature(rc_sp_hash, proof_of_space.plot_public_key)
     assert cc_sp_signature is not None
     assert rc_sp_signature is not None
@@ -1908,8 +1967,21 @@ def create_test_unfinished_block(
         foliage_transaction_block,
         transactions_info,
         block_generator.program if block_generator else None,
-        block_generator.block_height_list() if block_generator else [],
+        block_generator.block_height_list if block_generator else [],
     )
+
+
+# Remove these counters when `create_block_tools` and `create_block_tools_async` are removed
+create_block_tools_async_count = 0
+create_block_tools_count = 0
+
+# Note: tests that still use `create_block_tools` and `create_block_tools_async` should probably be
+# moved to the bt fixture in conftest.py. Take special care to find out if the users of these functions
+# need different BlockTools instances
+
+# All tests need different root directories containing different config.yaml files.
+# The daemon's listen port is configured in the config.yaml, and the only way a test can control which
+# listen port it uses is to write it to the config file.
 
 
 async def create_block_tools_async(
@@ -1918,7 +1990,15 @@ async def create_block_tools_async(
     const_dict=None,
     keychain: Optional[Keychain] = None,
 ) -> BlockTools:
-    bt = BlockTools(constants, root_path, const_dict, keychain)
+    global create_block_tools_async_count
+    create_block_tools_async_count += 1
+    print(f"  create_block_tools_async called {create_block_tools_async_count} times")
+    bt = BlockTools(
+        constants,
+        root_path,
+        const_dict,
+        keychain,
+    )
     await bt.setup_keys()
     await bt.setup_plots()
 
@@ -1931,6 +2011,9 @@ def create_block_tools(
     const_dict=None,
     keychain: Optional[Keychain] = None,
 ) -> BlockTools:
+    global create_block_tools_count
+    create_block_tools_count += 1
+    print(f"  create_block_tools called {create_block_tools_count} times")
     bt = BlockTools(constants, root_path, const_dict, keychain)
 
     asyncio.get_event_loop().run_until_complete(bt.setup_keys())

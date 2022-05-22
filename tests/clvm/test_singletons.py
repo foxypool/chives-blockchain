@@ -8,9 +8,9 @@ from chives.types.blockchain_format.program import Program
 from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.types.blockchain_format.coin import Coin
 from chives.types.coin_spend import CoinSpend
+from chives.types.condition_opcodes import ConditionOpcode
 from chives.types.spend_bundle import SpendBundle
 from chives.util.errors import Err
-from chives.util.condition_tools import ConditionOpcode
 from chives.util.ints import uint64
 from chives.consensus.default_constants import DEFAULT_CONSTANTS
 from chives.wallet.lineage_proof import LineageProof

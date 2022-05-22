@@ -67,7 +67,8 @@ proof_of_space = ProofOfSpace(
 )
 
 pool_target = PoolTarget(
-    bytes.fromhex("d23da14695a188ae5708dd152263c4db883eb27edeb936178d4d988b8f3ce5fc"), uint32(421941852)
+    bytes32.from_hexstr("d23da14695a188ae5708dd152263c4db883eb27edeb936178d4d988b8f3ce5fc"),
+    uint32(421941852),
 )
 g2_element = G2Element(
     bytes.fromhex(
@@ -257,7 +258,7 @@ proofs = SubSlotProofs(
 )
 
 reward_chain_block = RewardChainBlock(
-    uint128(187084448821891925757676377381787790114),
+    uint128(187096998821891925757676377381787790114),
     uint32(301889038),
     uint128(147405131564197136044258885592706844266),
     uint8(9),
@@ -361,7 +362,7 @@ reject_block = full_node_protocol.RejectBlock(
 
 request_blocks = full_node_protocol.RequestBlocks(
     uint32(2578479570),
-    uint32(3884442719),
+    uint32(3896992719),
     False,
 )
 
@@ -474,7 +475,7 @@ respond_compact_vdf = full_node_protocol.RespondCompactVDF(
 
 request_peers = full_node_protocol.RequestPeers()
 
-timestamped_peer_info = TimestampedPeerInfo("127.0.0.1", uint16(8444), uint64(10796))
+timestamped_peer_info = TimestampedPeerInfo("127.0.0.1", uint16(9699), uint64(10796))
 
 respond_peers = full_node_protocol.RespondPeers([timestamped_peer_info])
 
@@ -485,12 +486,8 @@ request_puzzle_solution = wallet_protocol.RequestPuzzleSolution(
     uint32(3905474497),
 )
 
-program = Program.from_serialized_program(
-    SerializedProgram.from_bytes(
-        bytes.fromhex(
-            "ff01ffff33ffa0f8912302fb33b8188046662785704afc3dd945074e4b45499a7173946e044695ff8203e880ffff33ffa03eaa52e850322dbc281c6b922e9d8819c7b4120ee054c4aa79db50be516a2bcaff8207d08080"
-        )
-    ),
+program = Program.fromhex(
+    "ff01ffff33ffa0f8912302fb33b8188046662785704afc3dd945074e4b45499a7173946e044695ff8203e880ffff33ffa03eaa52e850322dbc281c6b922e9d8819c7b4120ee054c4aa79db50be516a2bcaff8207d08080"
 )
 
 puzzle_solution_response = wallet_protocol.PuzzleSolutionResponse(

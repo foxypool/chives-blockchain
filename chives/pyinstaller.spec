@@ -2,6 +2,7 @@
 import importlib
 import pathlib
 import platform
+import sysconfig
 
 from pkg_resources import get_distribution
 
@@ -74,14 +75,15 @@ binaries = [
     (
         f"{ROOT}/madmax/chia_plot",
         "madmax"
-#    ),
+    )
+#    ,
 #    (
 #        f"{ROOT}/madmax/chia_plot_k34",
 #        "madmax"
-    )
+#    )
 ]
 
-#if not THIS_IS_MAC:
+# if not THIS_IS_MAC:
 #    binaries.extend([
 #        (
 #            f"{ROOT}/bladebit/bladebit",
@@ -94,11 +96,11 @@ if THIS_IS_WINDOWS:
 
 # this probably isn't necessary
 if THIS_IS_WINDOWS:
-    entry_points.extend(["aiohttp", "chives.util.bip39"])
+    entry_points.extend(["aiohttp", "chia.util.bip39"])
 
 if THIS_IS_WINDOWS:
     chives_mod = importlib.import_module("chives")
-    dll_paths = ROOT / "*.dll"
+    dll_paths = pathlib.Path(sysconfig.get_path("platlib")) / "*.dll"
 
     binaries = [
         (
@@ -188,6 +190,9 @@ add_binary("daemon", f"{ROOT}/chives/daemon/server.py", COLLECT_ARGS)
 
 for server in SERVERS:
     add_binary(f"start_{server}", f"{ROOT}/chives/server/start_{server}.py", COLLECT_ARGS)
+
+add_binary("start_crawler", f"{ROOT}/chives/seeder/start_crawler.py", COLLECT_ARGS)
+add_binary("start_seeder", f"{ROOT}/chives/seeder/dns_server.py", COLLECT_ARGS)
 
 COLLECT_KWARGS = dict(
     strip=False,

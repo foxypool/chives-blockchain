@@ -1,9 +1,9 @@
 import dataclasses
+import logging
 
 from chives.types.blockchain_format.sized_bytes import bytes32
 from chives.util.byte_types import hexstr_to_bytes
 from chives.util.ints import uint8, uint32, uint64, uint128
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +60,7 @@ class ConsensusConstants:
     MAX_GENERATOR_SIZE: uint32
     MAX_GENERATOR_REF_LIST_SIZE: uint32
     POOL_SUB_SLOT_ITERS: uint64
+    SOFT_FORK_HEIGHT: uint32
 
     def replace(self, **changes) -> "ConsensusConstants":
         return dataclasses.replace(self, **changes)

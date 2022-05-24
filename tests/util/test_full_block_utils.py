@@ -98,6 +98,7 @@ def get_foliage_block_data():
             pool_target,
             pool_signature,  # pool_signature
             hsh(),  # farmer_reward_puzzle_hash
+            hsh(),  # officialwallets_reward_puzzle_hash
             hsh(),  # extension_data
         )
 
